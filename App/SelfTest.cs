@@ -19,6 +19,7 @@ namespace KeRing.App
 
             report.AppendLine("KeRing 自检报告  " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
             report.AppendLine("程序目录：" + AppPaths.BaseDirectory);
+            report.AppendLine("数据目录：" + AppPaths.DataDirectory);
             report.AppendLine();
 
             var config = AppConfig.Load();
@@ -78,14 +79,18 @@ namespace KeRing.App
             }
             report.AppendLine();
 
-            report.AppendLine("[7] 提示音文件");
+            report.AppendLine("[7] 提示音");
+            report.AppendLine("    来源：" + BellTone.DescribeSource());
             try
             {
-                report.AppendLine("    " + BellTone.EnsureBellFile());
+                using (var bell = BellTone.OpenEmbedded())
+                {
+                    report.AppendLine("    可读取，大小 " + bell.Length + " 字节");
+                }
             }
             catch (Exception ex)
             {
-                report.AppendLine("    !! 生成失败：" + ex.Message);
+                report.AppendLine("    !! 打不开：" + ex.Message);
                 failures++;
             }
             report.AppendLine();

@@ -5,12 +5,12 @@ using Newtonsoft.Json;
 namespace KeRing.App
 {
     /// <summary>
-    /// 配置文件（kering.config.json），放在 exe 同目录，直接改文本即可。
+    /// 配置文件（kering.config.json），放在数据目录（见 AppPaths），直接改文本即可。
     /// </summary>
     internal sealed class AppConfig
     {
         // ---- 数据源 ----
-        /// <summary>演示用：本地课表文件（相对路径按 exe 同目录解析）。</summary>
+        /// <summary>演示用：本地课表文件（相对路径按数据目录解析）。</summary>
         public string ScheduleFilePath { get; set; } = "schedule.json";
 
         /// <summary>预留：正式接入时改成接口地址，由解析模块消费。</summary>

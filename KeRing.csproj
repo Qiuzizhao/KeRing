@@ -20,17 +20,13 @@
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
     <PackageReference Include="NAudio" Version="2.2.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Costura.Fody" Version="6.0.0" PrivateAssets="all" />
     <Reference Include="System.Speech" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="Assets\app.ico" />
-  </ItemGroup>
-
-  <!-- 铃声随程序发布：编译时放到程序目录的 audio\ding.wav。
-       PreserveNewest 意味着现场换过的铃声（更新的文件）不会被编译覆盖。 -->
-  <ItemGroup>
-    <None Include="Assets\bell.wav" Link="audio\ding.wav" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="Assets\bell.wav" />
   </ItemGroup>
 
 </Project>

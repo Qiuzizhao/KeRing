@@ -5,25 +5,51 @@ using System.Text;
 namespace KeRing.App.Audio
 {
     /// <summary>
-    /// 提示音文件：程序目录下的 audio\ding.wav。
-    ///
-    /// 编译时会把仓库里的 Assets\bell.wav 放到这个位置，所以铃声是跟着程序走的，
-    /// 拷到教室机器上就有。现场要换成学校自己的铃声，直接替换 audio\ding.wav 即可
-    /// （已存在的文件不会被覆盖），程序不用改。只有文件缺失时才用下面的代码合成占位音。
+    /// 提示音的来源，按优先级：
+    ///   1. 数据目录下现场替换过的 audio\ding.wav —— 想换铃声就往那儿放一个同名文件
+    ///   2. 内嵌在 exe 里的 Assets\bell.wav —— 仓库里的母本，编译时嵌进去，跟着单文件走
+    ///   3. 代码合成的占位"叮"声 —— 前两者都拿不到时的兜底
+    /// 返回的流由调用方负责释放。
     /// </summary>
     internal static class BellTone
     {
+        private const string ResourceName = "KeRing.Assets.bell.wav";
         private const int SampleRate = 44100;
 
-        public static string EnsureBellFile()
+        /// <summary>现场替换的铃声文件路径（支持 wav/mp3）；没有就返回 null。</summary>
+        public static string CustomFilePath()
         {
-            AppPaths.EnsureDirectories();
-            var path = AppPaths.BellFile;
-            if (File.Exists(path)) { return path; }
+            try
+            {
+                var path = AppPaths.BellFile;
+                return File.Exists(path) ? path : null;
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn("检查自定义铃声失败：" + ex.Message);
+                return null;
+            }
+        }
 
-            WriteWav(path, Render());
-            Logger.Info("已生成占位提示音：" + path);
-            return path;
+        /// <summary>内嵌在 exe 里的铃声；拿不到就用代码合成的占位音。返回的流由调用方释放。</summary>
+        public static Stream OpenEmbedded()
+        {
+            var embedded = typeof(BellTone).Assembly.GetManifestResourceStream(ResourceName);
+            if (embedded != null) { return embedded; }
+
+            Logger.Warn("内嵌铃声缺失，改用代码合成的占位音");
+            return new MemoryStream(ToWav(Render()), false);
+        }
+
+        /// <summary>自检用：这个 exe 现在用的是哪一份铃声。</summary>
+        public static string DescribeSource()
+        {
+            var custom = CustomFilePath();
+            if (custom != null) { return "自定义文件 " + custom; }
+
+            return typeof(BellTone).Assembly.GetManifestResourceStream(ResourceName) != null
+                ? "内嵌在 exe 里"
+                : "代码合成的占位音";
         }
 
         private static float[] Render()
@@ -53,9 +79,9 @@ namespace KeRing.App.Audio
             return samples;
         }
 
-        private static void WriteWav(string path, float[] samples)
+        private static byte[] ToWav(float[] samples)
         {
-            using (var stream = File.Create(path))
+            using (var stream = new MemoryStream())
             using (var writer = new BinaryWriter(stream))
             {
                 var dataSize = samples.Length * 2;
@@ -79,6 +105,9 @@ namespace KeRing.App.Audio
                     var clamped = Math.Max(-1f, Math.Min(1f, sample));
                     writer.Write((short)(clamped * short.MaxValue));
                 }
+
+                writer.Flush();
+                return stream.ToArray();
             }
         }
     }

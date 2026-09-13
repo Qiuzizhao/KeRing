@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.IO;
 using System.Speech.Synthesis;
 using System.Threading;
 using NAudio.Wave;
@@ -31,8 +32,6 @@ namespace KeRing.App.Audio
 
                 try
                 {
-                    var bellFile = BellTone.EnsureBellFile();
-
                     snapshot = _audio.Capture();
                     if (snapshot.Valid)
                     {
@@ -43,7 +42,27 @@ namespace KeRing.App.Audio
                         Logger.Warn("拿不到系统音量，跳过临时提升");
                     }
 
-                    PlayFile(bellFile);
+                    // 提示音单独兜底：铃声文件缺失或目录不可写时，不能让整条播报（含语音）一起失败
+                    try
+                    {
+                        // 现场替换过的铃声按文件播（wav/mp3 都认），否则播内嵌的那份
+                        var custom = BellTone.CustomFilePath();
+                        if (custom != null)
+                        {
+                            PlayFile(custom);
+                        }
+                        else
+                        {
+                            using (var bell = BellTone.OpenEmbedded())
+                            {
+                                PlayStream(bell);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Error("提示音播放失败，改为只播语音", ex);
+                    }
 
                     var text = (config.AnnouncePrefix ?? string.Empty) + courseName +
                                (config.AnnounceSuffix ?? string.Empty);
@@ -100,6 +119,23 @@ namespace KeRing.App.Audio
             {
                 Logger.Warn("枚举语音失败：" + ex.Message);
                 return 0;
+            }
+        }
+
+        private static void PlayStream(Stream stream)
+        {
+            using (var reader = new WaveFileReader(stream))
+            using (var output = new WaveOutEvent())
+            using (var finished = new ManualResetEventSlim(false))
+            {
+                output.PlaybackStopped += (sender, args) => finished.Set();
+                output.Init(reader);
+                output.Play();
+
+                if (!finished.Wait(TimeSpan.FromSeconds(20)))
+                {
+                    Logger.Warn("提示音播放超时");
+                }
             }
         }
 
