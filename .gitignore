@@ -3,11 +3,10 @@ bin/
 obj/
 pub_*/
 
-# 运行时生成的文件（程序是绿色部署，配置、课表、日志、音频都在 exe 同目录）
+# 运行时生成的文件（程序是绿色部署，配置、课表、日志都在 exe 同目录）
 logs/
 kering.config.json
 schedule.json
-audio/
 
 # 编辑器 / IDE
 *.user

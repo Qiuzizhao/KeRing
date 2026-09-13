@@ -27,4 +27,10 @@
     <EmbeddedResource Include="Assets\app.ico" />
   </ItemGroup>
 
+  <!-- 铃声随程序发布：编译时放到程序目录的 audio\ding.wav。
+       PreserveNewest 意味着现场换过的铃声（更新的文件）不会被编译覆盖。 -->
+  <ItemGroup>
+    <None Include="Assets\bell.wav" Link="audio\ding.wav" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
