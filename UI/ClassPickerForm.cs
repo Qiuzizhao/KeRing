@@ -28,7 +28,7 @@ namespace KeRing.UI
             AutoScaleMode = AutoScaleMode.None;
             Text = "选择班级";
             Font = new Font("Microsoft YaHei", 9F);
-            ClientSize = UiScale.S(460, 498);
+            ClientSize = UiScale.S(460, 508);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             StartPosition = FormStartPosition.CenterParent;
             MinimizeBox = false;
@@ -38,7 +38,7 @@ namespace KeRing.UI
             _list = new ListBox
             {
                 Location = UiScale.P(24, 24),
-                Size = UiScale.S(412, 408),
+                Size = UiScale.S(412, 404),
                 DrawMode = DrawMode.OwnerDrawFixed,
                 ItemHeight = UiScale.S(RowHeight),
                 Font = new Font("Microsoft YaHei", 12F),
@@ -59,12 +59,12 @@ namespace KeRing.UI
 
             if (_list.SelectedIndex < 0 && _list.Items.Count > 0) { _list.SelectedIndex = 0; }
 
-            var ok = new Button
-            {
-                Text = "确定",
-                Size = UiScale.S(88, 30),
-                Location = UiScale.P(264, 452),
-            };
+            // 主操作按钮做大一点、给点颜色，一体机上才好点
+            const int buttonY = 444;
+            const int okWidth = 160;
+            var okX = cancellable ? 84 : (460 - okWidth) / 2;
+
+            var ok = DialogButtons.Primary("确定", okX, buttonY, okWidth, 48);
             ok.Click += (sender, args) => Accept();
 
             Controls.Add(_list);
@@ -72,13 +72,8 @@ namespace KeRing.UI
 
             if (cancellable)
             {
-                var cancel = new Button
-                {
-                    Text = "取消",
-                    DialogResult = DialogResult.Cancel,
-                    Size = UiScale.S(88, 30),
-                    Location = UiScale.P(360, 452),
-                };
+                var cancel = DialogButtons.Secondary("取消", 256, buttonY, 120, 48);
+                cancel.DialogResult = DialogResult.Cancel;
                 Controls.Add(cancel);
                 CancelButton = cancel;
             }

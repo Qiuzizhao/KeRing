@@ -102,20 +102,11 @@ namespace KeRing.UI
             _stepperVolume = MakeStepper(0, 100, 5, volumePercent, 60 + RowHeight * 3);
             _stepperRefresh = MakeStepper(1, 1440, 5, refreshMinutes, 60 + RowHeight * 4);
 
-            var ok = new Button
-            {
-                Text = "确定",
-                DialogResult = DialogResult.OK,
-                Size = UiScale.S(88, 30),
-                Location = UiScale.P(264, 396),
-            };
-            var cancel = new Button
-            {
-                Text = "取消",
-                DialogResult = DialogResult.Cancel,
-                Size = UiScale.S(88, 30),
-                Location = UiScale.P(360, 396),
-            };
+            var ok = DialogButtons.Primary("确定", 232, 390, 116, 44);
+            ok.DialogResult = DialogResult.OK;
+
+            var cancel = DialogButtons.Secondary("取消", 356, 390, 88, 44);
+            cancel.DialogResult = DialogResult.Cancel;
 
             ok.Click += (sender, args) => Collect();
 
