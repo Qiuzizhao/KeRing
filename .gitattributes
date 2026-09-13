@@ -1,0 +1,4 @@
+# 统一换行处理，二进制资产不做文本转换
+* text=auto
+*.ico binary
+*.wav binary
