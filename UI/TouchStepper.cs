@@ -47,7 +47,7 @@ namespace KeRing.UI
                 Location = UiScale.P(ButtonSide, 0),
                 Size = UiScale.S(ValueWidth, ButtonSide),
                 TextAlign = ContentAlignment.MiddleCenter,
-                Font = new Font("Microsoft YaHei", 15F, FontStyle.Bold),
+                Font = UiFont.Stepper,
                 BackColor = Color.White,
                 ForeColor = Color.FromArgb(38, 42, 48),
                 BorderStyle = BorderStyle.FixedSingle,
@@ -84,7 +84,7 @@ namespace KeRing.UI
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.FromArgb(90, 100, 112),
                 ForeColor = Color.White,
-                Font = new Font("Microsoft YaHei", 17F, FontStyle.Bold),
+                Font = UiFont.StepperSign,
                 UseVisualStyleBackColor = false,
                 Cursor = Cursors.Hand,
             };

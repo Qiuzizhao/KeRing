@@ -10,11 +10,34 @@ namespace KeRing.App
     internal sealed class AppConfig
     {
         // ---- 数据源 ----
-        /// <summary>演示用：本地课表文件（相对路径按数据目录解析）。</summary>
+        /// <summary>演示用：本地课表文件（相对路径按数据目录解析）。只有没配接口地址时才用它。</summary>
         public string ScheduleFilePath { get; set; } = "schedule.json";
 
-        /// <summary>预留：正式接入时改成接口地址，由解析模块消费。</summary>
-        public string ScheduleApiUrl { get; set; } = string.Empty;
+        /// <summary>
+        /// 正式课表接口地址。**留空则退回本地演示文件**（见 ScheduleSourceFactory）。
+        /// 默认值就是学校的全校课表接口，教室机器配好就能直接用。
+        /// </summary>
+        public string ScheduleApiUrl { get; set; } = "http://10.40.1.1/php/dktk/dktkView.php";
+
+        /// <summary>
+        /// 接口身份标签：cookie usernameEncoded 的值。学校接口只校验它非空、不校验身份
+        /// （见 docs/课表接口采集方案.md 3.4），所以这里既不是账号也不是密码，
+        /// 用一个能标识来源的名字即可，方便在学校服务器日志里认出来。
+        /// </summary>
+        public string ScheduleCookieUser { get; set; } = "KeRing";
+
+        /// <summary>接口请求超时（秒）。</summary>
+        public int ScheduleTimeoutSeconds { get; set; } = 10;
+
+        /// <summary>
+        /// 时间校准用的 NTP 服务器，逗号分隔，按顺序试，第一个答上来的就用。
+        /// 教室机器如果连不上公网 NTP，**填学校内网的 NTP 或域控地址**；
+        /// 留空表示不查 NTP，退回用教务接口的时间。
+        /// </summary>
+        public string NtpServers { get; set; } = "ntp.aliyun.com,cn.pool.ntp.org,ntp.ntsc.ac.cn";
+
+        /// <summary>每个 NTP 服务器的等待秒数。NTP 走 UDP，不能用 HTTP 代理，超时要短。</summary>
+        public int NtpTimeoutSeconds { get; set; } = 2;
 
         /// <summary>自动刷新间隔（分钟）。</summary>
         public int RefreshIntervalMinutes { get; set; } = 30;
@@ -104,7 +127,12 @@ namespace KeRing.App
             AnnounceVolumePercent = Clamp(AnnounceVolumePercent, 0, 100);
             RefreshIntervalMinutes = Clamp(RefreshIntervalMinutes, 1, 24 * 60);
             MorningSplitAfterPeriod = Clamp(MorningSplitAfterPeriod, 0, 20);
+            ScheduleTimeoutSeconds = Clamp(ScheduleTimeoutSeconds, 1, 60);
+            NtpTimeoutSeconds = Clamp(NtpTimeoutSeconds, 1, 30);
             GradeScheme = GradeSchemes.Normalize(GradeScheme);
+            if (ScheduleApiUrl == null) { ScheduleApiUrl = string.Empty; }
+            if (string.IsNullOrWhiteSpace(ScheduleCookieUser)) { ScheduleCookieUser = "KeRing"; }
+            if (NtpServers == null) { NtpServers = string.Empty; }
             if (SelectedClassId == null) { SelectedClassId = string.Empty; }
             if (AnnouncePrefix == null) { AnnouncePrefix = string.Empty; }
             if (AnnounceSuffix == null) { AnnounceSuffix = string.Empty; }

@@ -21,7 +21,7 @@ namespace KeRing.UI
         private readonly IList<SchoolClass> _classes;
         private readonly CheckBox _chkAutoStart;
         private readonly Button _btnClass;
-        private readonly TouchChoice _choiceScheme;
+        private readonly Label _lblScheme;
         private readonly TouchStepper _stepperAhead;
         private readonly TouchStepper _stepperVolume;
         private readonly TouchStepper _stepperRefresh;
@@ -56,7 +56,7 @@ namespace KeRing.UI
 
             AutoScaleMode = AutoScaleMode.None;
             Text = "设置";
-            Font = new Font("Microsoft YaHei", 9F);
+            Font = UiFont.Body;
             ClientSize = UiScale.S(460, 448);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             StartPosition = FormStartPosition.CenterParent;
@@ -80,7 +80,7 @@ namespace KeRing.UI
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.FromArgb(90, 100, 112),
                 ForeColor = Color.White,
-                Font = new Font("Microsoft YaHei", 11F, FontStyle.Bold),
+                Font = UiFont.DialogButton,
                 UseVisualStyleBackColor = false,
                 Cursor = Cursors.Hand,
                 TextAlign = ContentAlignment.MiddleCenter,
@@ -90,12 +90,14 @@ namespace KeRing.UI
             _btnClass.FlatAppearance.MouseDownBackColor = Color.FromArgb(68, 76, 86);
             _btnClass.Click += (sender, args) => ChooseClass();
 
-            _choiceScheme = new TouchChoice(
-                new[] { GradeSchemes.Junior, GradeSchemes.Senior },
-                GradeScheme,
-                StepperTotalWidth)
+            // 作息方案不再让用户选：它由班级决定（一二年级低年级、三到六年级高年级）。
+            // 这一行保留成只读显示，让管理员看得见这台机器现在用的到底是哪套时间。
+            _lblScheme = new Label
             {
-                Location = UiScale.P(StepperX, 60 + RowHeight),
+                AutoSize = true,
+                Font = UiFont.DialogButton,
+                ForeColor = Color.FromArgb(60, 64, 68),
+                Location = UiScale.P(StepperX, 60 + RowHeight + 16),
             };
 
             _stepperAhead = MakeStepper(0, 60, 1, aheadMinutes, 60 + RowHeight * 2);
@@ -114,7 +116,7 @@ namespace KeRing.UI
             Controls.Add(MakeLabel("班级：", LabelX, 60));
             Controls.Add(_btnClass);
             Controls.Add(MakeLabel("时段方案：", LabelX, 60 + RowHeight));
-            Controls.Add(_choiceScheme);
+            Controls.Add(_lblScheme);
             Controls.Add(MakeLabel("提前提醒：", LabelX, 60 + RowHeight * 2));
             Controls.Add(_stepperAhead);
             Controls.Add(MakeLabel("分钟", UnitX, 60 + RowHeight * 2));
@@ -129,13 +131,25 @@ namespace KeRing.UI
 
             AcceptButton = ok;
             CancelButton = cancel;
+
+            UpdateScheme();
+        }
+
+        /// <summary>按当前班级刷新"时段方案"那一行，并同步 GradeScheme 属性。</summary>
+        private void UpdateScheme()
+        {
+            var scheme = GradeSchemes.SchemeForClass(DescribeClass(_classId));
+            if (scheme != null) { GradeScheme = scheme; }
+
+            _lblScheme.Text = scheme == null
+                ? GradeScheme + "（认不出年级，沿用原设置）"
+                : scheme + "（按班级自动）";
         }
 
         private void Collect()
         {
             AutoStartEnabled = _chkAutoStart.Checked;
             SelectedClassId = _classId;
-            GradeScheme = _choiceScheme.Selected;
             RemindAheadMinutes = _stepperAhead.Value;
             AnnounceVolumePercent = _stepperVolume.Value;
             RefreshIntervalMinutes = _stepperRefresh.Value;
@@ -151,6 +165,7 @@ namespace KeRing.UI
 
                 _classId = picker.SelectedClassId;
                 _btnClass.Text = DescribeClass(_classId);
+                UpdateScheme();
             }
         }
 

@@ -27,7 +27,7 @@ namespace KeRing.UI
 
             AutoScaleMode = AutoScaleMode.None;
             Text = "选择班级";
-            Font = new Font("Microsoft YaHei", 9F);
+            Font = UiFont.Body;
             ClientSize = UiScale.S(460, 508);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             StartPosition = FormStartPosition.CenterParent;
@@ -41,7 +41,7 @@ namespace KeRing.UI
                 Size = UiScale.S(412, 404),
                 DrawMode = DrawMode.OwnerDrawFixed,
                 ItemHeight = UiScale.S(RowHeight),
-                Font = new Font("Microsoft YaHei", 12F),
+                Font = UiFont.ListItem,
                 BorderStyle = BorderStyle.FixedSingle,
                 IntegralHeight = false,
             };

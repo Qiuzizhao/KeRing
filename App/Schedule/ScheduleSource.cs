@@ -11,6 +11,9 @@ namespace KeRing.App.Schedule
         public bool Success;
         public string Message;
         public SchoolSchedule Schedule;
+
+        /// <summary>这批数据是哪一周的（接口源会填；本地演示文件不填，为 0）。日志和缓存用。</summary>
+        public int Week;
     }
 
     /// <summary>
@@ -96,7 +99,7 @@ namespace KeRing.App.Schedule
                 result.Message = string.Format(
                     "已加载 {0} 个班级（{1:MM-dd HH:mm}）",
                     school.Classes.Count,
-                    DateTime.Now);
+                    AppClock.Now);
             }
             catch (Exception ex)
             {

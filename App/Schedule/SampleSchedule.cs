@@ -94,7 +94,7 @@ namespace KeRing.App.Schedule
 
             var dto = new ScheduleFileDto
             {
-                GeneratedAt = DateTime.Now,
+                GeneratedAt = AppClock.Now,
                 Periods = periods,
                 Classes = classes,
             };

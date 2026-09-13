@@ -32,7 +32,7 @@ namespace KeRing.App
             var line = string.Format(
                 CultureInfo.InvariantCulture,
                 "{0:yyyy-MM-dd HH:mm:ss} [{1}] {2}",
-                DateTime.Now,
+                AppClock.Now,
                 level,
                 message);
 
@@ -52,7 +52,7 @@ namespace KeRing.App
 
         private static string CurrentLogFile()
         {
-            var name = DateTime.Now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + ".log";
+            var name = AppClock.Now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + ".log";
             return Path.Combine(AppPaths.LogDirectory, name);
         }
 
@@ -61,7 +61,7 @@ namespace KeRing.App
             try
             {
                 if (!Directory.Exists(AppPaths.LogDirectory)) { return; }
-                var limit = DateTime.Now.AddDays(-RetainDays);
+                var limit = AppClock.Now.AddDays(-RetainDays);
                 foreach (var file in Directory.GetFiles(AppPaths.LogDirectory, "*.log"))
                 {
                     if (File.GetLastWriteTime(file) < limit)

@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Text;
 using System.Threading;
 using KeRing.App.Audio;
@@ -18,12 +19,19 @@ namespace KeRing.App
             var report = new StringBuilder();
             var failures = 0;
 
-            report.AppendLine("KeRing 自检报告  " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+            report.AppendLine("KeRing 自检报告  " + AppClock.Now.ToString("yyyy-MM-dd HH:mm:ss"));
             report.AppendLine("程序目录：" + AppPaths.BaseDirectory);
             report.AppendLine("数据目录：" + AppPaths.DataDirectory);
             report.AppendLine();
 
             var config = AppConfig.Load();
+            var source = ScheduleSourceFactory.Create(config);
+
+            // 先把时间问准：下面算出来的打铃点、下一个提醒点全靠"现在几点"，
+            // 本机钟不准的话自检报告本身就是错的。查不到 NTP 也不要紧，会自动退到下一级。
+            var timeZoneOk = AppClock.CheckTimeZone();
+            AppClock.SyncNtp(config.NtpServers, config.NtpTimeoutSeconds);
+
             report.AppendLine("[1] 配置");
             report.AppendLine("    文件：" + AppPaths.ConfigFile);
             report.AppendLine("    班级：" + (string.IsNullOrWhiteSpace(config.SelectedClassId)
@@ -33,11 +41,10 @@ namespace KeRing.App
             report.AppendLine("    提前提醒：" + config.RemindAheadMinutes + " 分钟");
             report.AppendLine("    播报音量：" + config.AnnounceVolumePercent + "%（播完恢复原值）");
             report.AppendLine("    刷新间隔：" + config.RefreshIntervalMinutes + " 分钟");
-            report.AppendLine("    数据源：" + config.ScheduleFilePath);
+            report.AppendLine("    数据源：" + source.Description);
             report.AppendLine();
 
             report.AppendLine("[2] 课表加载");
-            var source = new LocalFileScheduleSource(config.ScheduleFilePath);
             var load = source.Load();
             report.AppendLine("    结果：" + (load.Success ? "成功" : "失败") + " - " + load.Message);
             if (!load.Success) { failures++; }
@@ -55,19 +62,23 @@ namespace KeRing.App
                     report.AppendLine("      · " + item.DisplayName + "（" + item.Entries.Count + " 条课程）");
                 }
                 report.AppendLine("    本机使用：" + target.DisplayName);
+
+                // 和主界面用同一套推导：作息方案由班级决定，不是配置里那个值
+                var scheme = GradeSchemes.SchemeForClass(target.DisplayName) ?? config.GradeScheme;
+                report.AppendLine("    作息方案：" + scheme + "（按班级自动；一二年级低年级、三到六年级高年级）");
                 report.AppendLine();
 
                 // 和主界面一样：课表内容取选定班级，时刻取作息方案
                 var view = new WeekSchedule
                 {
                     GeneratedAt = school.GeneratedAt,
-                    Periods = GradeSchemes.Create(config.GradeScheme),
+                    Periods = GradeSchemes.Create(scheme),
                     Entries = target.Entries,
                 };
 
-                var weekday = ReminderPlanner.ToWeekday(DateTime.Now.DayOfWeek);
+                var weekday = ReminderPlanner.ToWeekday(AppClock.Now.DayOfWeek);
                 report.AppendLine("[4] 今天（" + ReminderPlanner.WeekdayName(weekday) + "）的打铃点");
-                var today = ReminderPlanner.BuildForDay(view, DateTime.Now, config.RemindAheadMinutes);
+                var today = ReminderPlanner.BuildForDay(view, AppClock.Now, config.RemindAheadMinutes);
                 if (today.Count == 0)
                 {
                     report.AppendLine("    （今天没有课）");
@@ -80,11 +91,11 @@ namespace KeRing.App
                 report.AppendLine();
 
                 DateTime fireTime;
-                var next = ReminderPlanner.FindNext(view, DateTime.Now, config.RemindAheadMinutes, out fireTime);
+                var next = ReminderPlanner.FindNext(view, AppClock.Now, config.RemindAheadMinutes, out fireTime);
                 report.AppendLine("[5] 下一个提醒点");
                 report.AppendLine("    " + (next == null
                     ? "找不到"
-                    : next.Describe() + "，还有 " + FormatSpan(fireTime - DateTime.Now)));
+                    : next.Describe() + "，还有 " + FormatSpan(fireTime - AppClock.Now)));
                 report.AppendLine();
             }
 
@@ -124,6 +135,32 @@ namespace KeRing.App
             report.AppendLine("    当前状态：" + (AutoStart.IsEnabled() ? "已开启" : "未开启"));
             report.AppendLine();
 
+            report.AppendLine("[10] 时间");
+            report.AppendLine("    本机时间：" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") +
+                              "；时区 " + AppClock.TimeZoneDescription +
+                              (timeZoneOk ? "" : "  ← 不是北京时间，建议改成 UTC+08:00"));
+            var ntpSkew = AppClock.NtpSkew;
+            report.AppendLine("    NTP：" + (ntpSkew.HasValue
+                ? AppClock.NtpServer + "，本机时间比标准时间" +
+                  (ntpSkew.Value < TimeSpan.Zero ? "快 " : "慢 ") +
+                  Math.Abs(ntpSkew.Value.TotalSeconds).ToString("0.00", CultureInfo.InvariantCulture) + " 秒"
+                : "全部不可达（配置：" + config.NtpServers + "）"));
+            var serverSkew = AppClock.ServerSkew;
+            report.AppendLine("    教务接口：" + (!serverSkew.HasValue
+                ? "没取到"
+                : "本机时间比服务器" +
+                  (serverSkew.Value < TimeSpan.Zero ? "快 " : "慢 ") +
+                  Math.Abs(serverSkew.Value.TotalSeconds).ToString("0.0", CultureInfo.InvariantCulture) +
+                  " 秒（服务器自身不准，只在偏差超过 1 分钟时才采用）"));
+            report.AppendLine("    采用：" + AppClock.Source + "，修正 " +
+                              AppClock.Offset.TotalSeconds.ToString("+0.00;-0.00;0.00", CultureInfo.InvariantCulture) + " 秒");
+            report.AppendLine("    打铃用的时间：" + AppClock.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+            if (!timeZoneOk)
+            {
+                report.AppendLine("    （时区不影响打铃——程序一律按北京时间算——但建议把系统时区也改对）");
+            }
+
+            report.AppendLine();
             report.AppendLine(failures == 0 ? "自检通过。" : "自检发现 " + failures + " 个问题。");
 
             Console.WriteLine(report.ToString());

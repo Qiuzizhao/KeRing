@@ -37,7 +37,7 @@ namespace KeRing.UI
                 FlatStyle = FlatStyle.Flat,
                 BackColor = back,
                 ForeColor = Color.White,
-                Font = new Font("Microsoft YaHei", 11F, FontStyle.Bold),
+                Font = UiFont.Button,
                 UseVisualStyleBackColor = false,
                 Cursor = Cursors.Hand,
                 TextAlign = ContentAlignment.MiddleCenter,

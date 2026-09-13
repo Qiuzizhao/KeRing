@@ -37,6 +37,13 @@ namespace KeRing.App.Schedule
         public int Period { get; set; }
 
         public string Course { get; set; }
+
+        /// <summary>
+        /// 这一格是**调课**调过来的，跟基础课表不一样。
+        /// 界面用蓝色字体标出来，让人一眼看出这节课的位置被换过。
+        /// 目前只有学校接口那个数据源会置这个标记（见 HttpScheduleSource）。
+        /// </summary>
+        public bool Adjusted { get; set; }
     }
 
     internal sealed class WeekSchedule

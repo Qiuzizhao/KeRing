@@ -60,7 +60,7 @@ namespace KeRing.UI
                     Size = UiScale.S(buttonWidth, Height_),
                     FlatStyle = FlatStyle.Flat,
                     ForeColor = Color.White,
-                    Font = new Font("Microsoft YaHei", 11F, FontStyle.Bold),
+                    Font = UiFont.DialogButton,
                     UseVisualStyleBackColor = false,
                     Cursor = Cursors.Hand,
                     BackColor = i == _selected ? SelectedBack : UnselectedBack,

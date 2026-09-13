@@ -44,7 +44,7 @@ namespace KeRing.App
             lock (_gate)
             {
                 _schedule = schedule;
-                Rebuild(DateTime.Now);
+                Rebuild(AppClock.Now);
             }
         }
 
@@ -54,7 +54,7 @@ namespace KeRing.App
             lock (_gate)
             {
                 _aheadMinutes = minutes;
-                if (_schedule != null) { Rebuild(DateTime.Now); }
+                if (_schedule != null) { Rebuild(AppClock.Now); }
             }
         }
 
@@ -66,7 +66,7 @@ namespace KeRing.App
                 DateTime fireTime;
                 lock (_gate)
                 {
-                    return ReminderPlanner.FindNext(_schedule, DateTime.Now, _aheadMinutes, out fireTime);
+                    return ReminderPlanner.FindNext(_schedule, AppClock.Now, _aheadMinutes, out fireTime);
                 }
             }
         }
@@ -91,7 +91,7 @@ namespace KeRing.App
 
             try
             {
-                var now = DateTime.Now;
+                var now = AppClock.Now;
                 lock (_gate)
                 {
                     if (_schedule == null) { return; }
