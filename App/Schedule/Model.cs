@@ -76,4 +76,50 @@ namespace KeRing.App.Schedule
             return result;
         }
     }
+
+    /// <summary>
+    /// 一个课表单位（一个班级）。数据源给的是全校课表，程序从中挑一个来用。
+    /// </summary>
+    internal sealed class SchoolClass
+    {
+        /// <summary>唯一标识，程序用它记住"这台机器是哪一班"。改名不影响，换了 id 才算换班。</summary>
+        public string Id { get; set; }
+
+        /// <summary>界面上显示的名字，例如"一(1)班"。</summary>
+        public string Name { get; set; }
+
+        public List<CourseEntry> Entries { get; set; } = new List<CourseEntry>();
+
+        public string DisplayName
+        {
+            get
+            {
+                if (!string.IsNullOrWhiteSpace(Name)) { return Name.Trim(); }
+                return string.IsNullOrWhiteSpace(Id) ? "未命名班级" : Id.Trim();
+            }
+        }
+    }
+
+    /// <summary>整所学校的课表：数据源一次返回全校，程序从中挑出当前班级的内容。</summary>
+    internal sealed class SchoolSchedule
+    {
+        public DateTime? GeneratedAt { get; set; }
+
+        /// <summary>节次（时刻会被作息方案表覆盖，见 GradeSchemes）。</summary>
+        public List<Period> Periods { get; set; } = new List<Period>();
+
+        public List<SchoolClass> Classes { get; set; } = new List<SchoolClass>();
+
+        public SchoolClass FindClass(string id)
+        {
+            if (string.IsNullOrWhiteSpace(id)) { return null; }
+
+            foreach (var item in Classes)
+            {
+                if (string.Equals(item.Id, id, StringComparison.Ordinal)) { return item; }
+            }
+
+            return null;
+        }
+    }
 }

@@ -25,6 +25,12 @@ namespace KeRing.App
         /// <summary>作息方案：高年级 / 低年级。默认高年级。时刻以方案表为准，见 GradeSchemes。</summary>
         public string GradeScheme { get; set; } = GradeSchemes.Senior;
 
+        /// <summary>
+        /// 这台机器使用哪个班级的课表（数据源里的班级 Id）。
+        /// 空 = 还没选过，首次运行时会弹"选择班级"；选过之后一直记着，重开不用再选。
+        /// </summary>
+        public string SelectedClassId { get; set; } = string.Empty;
+
         // ---- 打铃规则 ----
         /// <summary>提前几分钟提醒。当前约定：上课前 7 分钟。</summary>
         public int RemindAheadMinutes { get; set; } = 7;
@@ -99,6 +105,7 @@ namespace KeRing.App
             RefreshIntervalMinutes = Clamp(RefreshIntervalMinutes, 1, 24 * 60);
             MorningSplitAfterPeriod = Clamp(MorningSplitAfterPeriod, 0, 20);
             GradeScheme = GradeSchemes.Normalize(GradeScheme);
+            if (SelectedClassId == null) { SelectedClassId = string.Empty; }
             if (AnnouncePrefix == null) { AnnouncePrefix = string.Empty; }
             if (AnnounceSuffix == null) { AnnounceSuffix = string.Empty; }
         }

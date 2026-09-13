@@ -10,7 +10,7 @@ namespace KeRing.App.Schedule
     {
         public bool Success;
         public string Message;
-        public WeekSchedule Schedule;
+        public SchoolSchedule Schedule;
     }
 
     /// <summary>
@@ -51,24 +51,51 @@ namespace KeRing.App.Schedule
 
                 var json = File.ReadAllText(fullPath, Encoding.UTF8);
                 var dto = JsonConvert.DeserializeObject<ScheduleFileDto>(json);
-                if (dto == null || dto.Periods == null || dto.Periods.Count == 0)
+                if (dto == null)
                 {
                     result.Success = false;
-                    result.Message = "课表内容为空或格式不对：" + fullPath;
+                    result.Message = "课表内容无法解析：" + fullPath;
                     return result;
                 }
 
-                result.Schedule = new WeekSchedule
+                var school = new SchoolSchedule
                 {
                     GeneratedAt = dto.GeneratedAt,
-                    Periods = dto.Periods,
-                    Entries = dto.Entries ?? new List<CourseEntry>(),
+                    Periods = dto.Periods ?? new List<Period>(),
                 };
+
+                if (dto.Classes != null && dto.Classes.Count > 0)
+                {
+                    foreach (var item in dto.Classes)
+                    {
+                        if (item == null) { continue; }
+                        item.Entries = item.Entries ?? new List<CourseEntry>();
+                        school.Classes.Add(item);
+                    }
+                }
+                else if (dto.Entries != null)
+                {
+                    // 兼容旧格式：整份文件就是一个班，包成单班
+                    school.Classes.Add(new SchoolClass
+                    {
+                        Id = "default",
+                        Name = "默认班级",
+                        Entries = dto.Entries,
+                    });
+                }
+
+                if (school.Classes.Count == 0)
+                {
+                    result.Success = false;
+                    result.Message = "课表里没有任何班级：" + fullPath;
+                    return result;
+                }
+
+                result.Schedule = school;
                 result.Success = true;
                 result.Message = string.Format(
-                    "已加载 {0} 节作息、{1} 条课程（{2:MM-dd HH:mm}）",
-                    result.Schedule.Periods.Count,
-                    result.Schedule.Entries.Count,
+                    "已加载 {0} 个班级（{1:MM-dd HH:mm}）",
+                    school.Classes.Count,
                     DateTime.Now);
             }
             catch (Exception ex)
@@ -90,6 +117,10 @@ namespace KeRing.App.Schedule
         [JsonProperty("periods")]
         public List<Period> Periods { get; set; }
 
+        [JsonProperty("classes")]
+        public List<SchoolClass> Classes { get; set; }
+
+        /// <summary>旧格式：单班课表。保留是为了兼容已经生成过的 schedule.json。</summary>
         [JsonProperty("entries")]
         public List<CourseEntry> Entries { get; set; }
     }

@@ -45,6 +45,7 @@ namespace KeRing.UI
         private ToolStripMenuItem _muteMenuItem;
         private StatusStrip _statusBar;
         private ToolStripStatusLabel _lblClock;
+        private ToolStripStatusLabel _lblClass;
         private ToolStripStatusLabel _lblNext;
         private ToolStripStatusLabel _lblData;
         private ToolStripStatusLabel _lblAudio;
@@ -53,6 +54,10 @@ namespace KeRing.UI
         private System.Windows.Forms.Timer _uiTimer;
 
         private WeekSchedule _schedule;
+        private SchoolSchedule _school;
+        private string _className = string.Empty;
+        private bool _needsClassChoice;
+        private bool _classChooserOpen;
         private DataGridViewCell _currentCell;
         private DataGridViewCell _nextCell;
         private string _dataStatus = "尚未加载";
@@ -262,13 +267,14 @@ namespace KeRing.UI
                 Spring = true,
                 TextAlign = ContentAlignment.MiddleLeft,
             };
+            _lblClass = new ToolStripStatusLabel { Text = "班级：--", AutoSize = true };
             _lblData = new ToolStripStatusLabel { Text = "数据：--", AutoSize = true };
             _lblAudio = new ToolStripStatusLabel { Text = "音量：--", AutoSize = true };
             _lblLastAnnounce = new ToolStripStatusLabel { Text = "播报：--", AutoSize = true };
 
             _statusBar.Items.AddRange(new ToolStripItem[]
             {
-                _lblClock, _lblNext, _lblData, _lblAudio, _lblLastAnnounce,
+                _lblClock, _lblClass, _lblNext, _lblData, _lblAudio, _lblLastAnnounce,
             });
         }
 
@@ -303,6 +309,9 @@ namespace KeRing.UI
             ApplyAutoStartFromConfig();
             ApplyMuteState();
 
+            // 配置里没有班级 = 第一次运行，稍后取到课表要弹一次选择框
+            _needsClassChoice = string.IsNullOrWhiteSpace(_config.SelectedClassId);
+
             Logger.Info("界面已加载，课表来源：" + _config.ScheduleFilePath);
             Logger.Info(string.Format(
                 "窗口客户区 {0} x {1}，设备 DPI {2}，界面缩放 {3:P0}",
@@ -317,6 +326,16 @@ namespace KeRing.UI
             _uiTimer.Start();
 
             if (_config.StartMinimized) { Hide(); }
+        }
+
+        protected override void OnShown(EventArgs e)
+        {
+            base.OnShown(e);
+
+            // 首次运行要选班级。放在窗口显示之后弹：
+            // 一方面用户先看到主界面不会觉得程序没反应，
+            // 另一方面在 OnLoad 里开模态框会把主窗口的显示流程挡住。
+            if (_needsClassChoice) { BeginInvoke((Action)EnsureClassChosen); }
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
@@ -380,8 +399,8 @@ namespace KeRing.UI
                 if (result.Success)
                 {
                     ok = true;
-                    _schedule = result.Schedule;
-                    ApplyGradeScheme();
+                    _school = result.Schedule;
+                    BuildScheduleView();
                     BuildRows();
 
                     if (!_sizedToContent)
@@ -409,6 +428,10 @@ namespace KeRing.UI
             // 状态栏只放短状态，完整信息放悬停提示，避免长文本挤掉"下一个提醒点"
             _lblData.Text = "数据：" + (ok ? "正常 " : "失败 ") + DateTime.Now.ToString("HH:mm");
             _lblData.ToolTipText = _dataStatus;
+
+            // 首次运行（配置里还没班级）时在这里弹一次"选择班级"；
+            // 数据第一次没取到也没关系，后续刷新到数据后会补上
+            if (_needsClassChoice) { EnsureClassChosen(); }
         }
 
         /// <summary>按当前课表重建表格的行（列固定为 7 天）。</summary>
@@ -515,16 +538,79 @@ namespace KeRing.UI
         }
 
         /// <summary>
-        /// 用方案表覆盖课表里的作息时刻。
-        /// 数据源只知道"第几节上什么课"，具体几点上课由这台机器是低年级还是高年级决定。
+        /// 按"选定的班级 + 作息方案"重建当前显示的周课表。
+        /// 数据源给的是全校课表，这里挑出本机要用的那一个班；
+        /// 时刻不用数据里的，用方案表（见 GradeSchemes）。
+        /// 选定的班级在数据里找不到时退回第一个班（不弹窗，避免后台刷新时打断），并记日志。
         /// </summary>
-        private void ApplyGradeScheme()
+        private void BuildScheduleView()
         {
-            if (_schedule == null) { return; }
+            _schedule = null;
+            _className = string.Empty;
+
+            if (_school == null || _school.Classes.Count == 0) { return; }
+
+            var target = _school.FindClass(_config.SelectedClassId) ?? _school.Classes[0];
+            if (!string.Equals(target.Id, _config.SelectedClassId, StringComparison.Ordinal))
+            {
+                if (!string.IsNullOrWhiteSpace(_config.SelectedClassId))
+                {
+                    Logger.Warn("配置的班级 " + _config.SelectedClassId + " 不在课表里，暂用 " + target.DisplayName);
+                }
+
+                _config.SelectedClassId = target.Id;
+            }
 
             var periods = GradeSchemes.Create(_config.GradeScheme);
-            _schedule.Periods = periods;
-            Logger.Info("作息方案「" + _config.GradeScheme + "」已套用，共 " + periods.Count + " 节");
+            _schedule = new WeekSchedule
+            {
+                GeneratedAt = _school.GeneratedAt,
+                Periods = periods,
+                Entries = target.Entries,
+            };
+
+            _className = target.DisplayName;
+            if (_lblClass != null) { _lblClass.Text = "班级：" + _className; }
+
+            Logger.Info(string.Format(
+                "当前班级：{0}；作息方案：{1}（{2} 节）",
+                _className,
+                _config.GradeScheme,
+                periods.Count));
+        }
+
+        /// <summary>首次运行：让用户选一次班级，选完存进配置，以后不再问。</summary>
+        private void EnsureClassChosen()
+        {
+            if (!_needsClassChoice || _classChooserOpen) { return; }
+            if (!Visible) { return; }   // 窗口还没显示，等 OnShown 再弹
+            if (_school == null || _school.Classes.Count == 0) { return; }
+
+            _classChooserOpen = true;
+            try
+            {
+                string picked;
+                using (var picker = new ClassPickerForm(_school.Classes, _config.SelectedClassId, false))
+                {
+                    if (picker.ShowDialog(this) != DialogResult.OK) { return; }
+                    picked = picker.SelectedClassId;
+                }
+
+                _config.SelectedClassId = picked;
+                _config.Save();
+                _needsClassChoice = false;
+
+                BuildScheduleView();
+                BuildRows();
+                _scheduler.UpdateSchedule(_schedule);
+                UpdateNextReminderLabel(DateTime.Now);
+                UpdateHighlights(DateTime.Now);
+                Logger.Info("已完成首次班级选择：" + _className);
+            }
+            finally
+            {
+                _classChooserOpen = false;
+            }
         }
 
         /// <summary>
@@ -826,6 +912,8 @@ namespace KeRing.UI
         {
             using (var dialog = new SettingsForm(
                 _config.AutoStart,
+                _school == null ? null : _school.Classes,
+                _config.SelectedClassId,
                 _config.GradeScheme,
                 _config.RemindAheadMinutes,
                 _config.AnnounceVolumePercent,
@@ -834,7 +922,9 @@ namespace KeRing.UI
                 if (dialog.ShowDialog(this) != DialogResult.OK) { return; }
 
                 var schemeChanged = !string.Equals(_config.GradeScheme, dialog.GradeScheme, StringComparison.Ordinal);
+                var classChanged = !string.Equals(_config.SelectedClassId, dialog.SelectedClassId, StringComparison.Ordinal);
 
+                _config.SelectedClassId = dialog.SelectedClassId;
                 _config.RemindAheadMinutes = dialog.RemindAheadMinutes;
                 _config.AnnounceVolumePercent = dialog.AnnounceVolumePercent;
                 _config.RefreshIntervalMinutes = dialog.RefreshIntervalMinutes;
@@ -845,12 +935,13 @@ namespace KeRing.UI
                 _scheduler.UpdateAheadMinutes(_config.RemindAheadMinutes);
                 _lastRefresh = DateTime.Now; // 刚改完刷新间隔，别马上又刷一次
 
-                // 换了作息方案，时刻全变了：重算课表时刻、重建打铃点
-                if (schemeChanged && _schedule != null)
+                // 换了班级或作息方案：课表内容/时刻都变了，重建界面与打铃点
+                if ((classChanged || schemeChanged) && _school != null)
                 {
-                    ApplyGradeScheme();
+                    BuildScheduleView();
                     BuildRows();
                     _scheduler.UpdateSchedule(_schedule);
+                    FillRows();
                 }
 
                 if (_config.AutoStart != AutoStart.IsEnabled() && !AutoStart.SetEnabled(_config.AutoStart))

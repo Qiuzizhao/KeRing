@@ -7,10 +7,17 @@ using Newtonsoft.Json;
 namespace KeRing.App.Schedule
 {
     /// <summary>
-    /// 演示数据：一份普通的中学周课表。正式接入接口后这个类只在首次运行时兜底用。
+    /// 演示数据：一所学校若干班级的周课表。正式接入接口后这个类只在首次运行时兜底用。
+    /// 各班课表按班级序号错开，用来演示"同一份全校数据里挑一个班"。
     /// </summary>
     internal static class SampleSchedule
     {
+        private static readonly string[] ClassNames =
+        {
+            "一(1)班", "一(2)班", "二(1)班", "二(2)班", "三(1)班",
+            "三(2)班", "四(1)班", "五(1)班", "六(1)班",
+        };
+
         // 行 = 第 1..6 节，列 = 周一..周五（空字符串表示空堂）
         private static readonly string[][] Grid =
         {
@@ -56,28 +63,40 @@ namespace KeRing.App.Schedule
                 });
             }
 
-            var entries = new List<CourseEntry>();
-            for (var period = 0; period < Grid.Length; period++)
+            var classes = new List<SchoolClass>();
+            for (var k = 0; k < ClassNames.Length; k++)
             {
-                for (var day = 0; day < Grid[period].Length; day++)
+                var entries = new List<CourseEntry>();
+                for (var period = 0; period < Grid.Length; period++)
                 {
-                    var course = Grid[period][day];
-                    if (string.IsNullOrWhiteSpace(course)) { continue; }
-
-                    entries.Add(new CourseEntry
+                    for (var day = 0; day < Grid[period].Length; day++)
                     {
-                        Weekday = day + 1,
-                        Period = period + 1,
-                        Course = course,
-                    });
+                        // 每个班错开几列，模拟各班课表不同
+                        var course = Grid[period][(day + k) % Grid[period].Length];
+                        if (string.IsNullOrWhiteSpace(course)) { continue; }
+
+                        entries.Add(new CourseEntry
+                        {
+                            Weekday = day + 1,
+                            Period = period + 1,
+                            Course = course,
+                        });
+                    }
                 }
+
+                classes.Add(new SchoolClass
+                {
+                    Id = "class-" + (k + 1),
+                    Name = ClassNames[k],
+                    Entries = entries,
+                });
             }
 
             var dto = new ScheduleFileDto
             {
                 GeneratedAt = DateTime.Now,
                 Periods = periods,
-                Entries = entries,
+                Classes = classes,
             };
 
             return JsonConvert.SerializeObject(dto, Formatting.Indented);

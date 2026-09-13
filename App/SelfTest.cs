@@ -8,7 +8,8 @@ namespace KeRing.App
 {
     /// <summary>
     /// 无界面自检：KeRing.exe --selftest
-    /// 用来在目标机上快速确认"配置能读、课表能解析、音频设备和中文音色在不在"。
+    /// 用来在目标机上快速确认"配置能读、课表能解析、班级选没选、音频设备和中文音色在不在"。
+    /// 返回码 = 问题数，0 表示全过。
     /// </summary>
     internal static class SelfTest
     {
@@ -25,6 +26,10 @@ namespace KeRing.App
             var config = AppConfig.Load();
             report.AppendLine("[1] 配置");
             report.AppendLine("    文件：" + AppPaths.ConfigFile);
+            report.AppendLine("    班级：" + (string.IsNullOrWhiteSpace(config.SelectedClassId)
+                ? "（尚未选择，首次启动会弹选择框）"
+                : config.SelectedClassId));
+            report.AppendLine("    作息方案：" + config.GradeScheme);
             report.AppendLine("    提前提醒：" + config.RemindAheadMinutes + " 分钟");
             report.AppendLine("    播报音量：" + config.AnnounceVolumePercent + "%（播完恢复原值）");
             report.AppendLine("    刷新间隔：" + config.RefreshIntervalMinutes + " 分钟");
@@ -40,9 +45,29 @@ namespace KeRing.App
 
             if (load.Success)
             {
+                var school = load.Schedule;
+                var target = school.FindClass(config.SelectedClassId) ?? school.Classes[0];
+
+                report.AppendLine("[3] 班级");
+                report.AppendLine("    数据源共 " + school.Classes.Count + " 个班：");
+                foreach (var item in school.Classes)
+                {
+                    report.AppendLine("      · " + item.DisplayName + "（" + item.Entries.Count + " 条课程）");
+                }
+                report.AppendLine("    本机使用：" + target.DisplayName);
+                report.AppendLine();
+
+                // 和主界面一样：课表内容取选定班级，时刻取作息方案
+                var view = new WeekSchedule
+                {
+                    GeneratedAt = school.GeneratedAt,
+                    Periods = GradeSchemes.Create(config.GradeScheme),
+                    Entries = target.Entries,
+                };
+
                 var weekday = ReminderPlanner.ToWeekday(DateTime.Now.DayOfWeek);
-                report.AppendLine("[3] 今天（" + ReminderPlanner.WeekdayName(weekday) + "）的打铃点");
-                var today = ReminderPlanner.BuildForDay(load.Schedule, DateTime.Now, config.RemindAheadMinutes);
+                report.AppendLine("[4] 今天（" + ReminderPlanner.WeekdayName(weekday) + "）的打铃点");
+                var today = ReminderPlanner.BuildForDay(view, DateTime.Now, config.RemindAheadMinutes);
                 if (today.Count == 0)
                 {
                     report.AppendLine("    （今天没有课）");
@@ -55,21 +80,21 @@ namespace KeRing.App
                 report.AppendLine();
 
                 DateTime fireTime;
-                var next = ReminderPlanner.FindNext(load.Schedule, DateTime.Now, config.RemindAheadMinutes, out fireTime);
-                report.AppendLine("[4] 下一个提醒点");
+                var next = ReminderPlanner.FindNext(view, DateTime.Now, config.RemindAheadMinutes, out fireTime);
+                report.AppendLine("[5] 下一个提醒点");
                 report.AppendLine("    " + (next == null
                     ? "找不到"
                     : next.Describe() + "，还有 " + FormatSpan(fireTime - DateTime.Now)));
                 report.AppendLine();
             }
 
-            report.AppendLine("[5] 音频设备");
+            report.AppendLine("[6] 音频设备");
             var device = AudioController.DescribeDefaultDevice();
             report.AppendLine("    " + device);
             if (device.StartsWith("无可用", StringComparison.Ordinal)) { failures++; }
             report.AppendLine();
 
-            report.AppendLine("[6] 中文语音");
+            report.AppendLine("[7] 中文语音");
             var voices = Announcer.CountChineseVoices();
             report.AppendLine("    可用中文音色：" + voices + " 个");
             if (voices == 0)
@@ -79,7 +104,7 @@ namespace KeRing.App
             }
             report.AppendLine();
 
-            report.AppendLine("[7] 提示音");
+            report.AppendLine("[8] 提示音");
             report.AppendLine("    来源：" + BellTone.DescribeSource());
             try
             {
@@ -95,7 +120,7 @@ namespace KeRing.App
             }
             report.AppendLine();
 
-            report.AppendLine("[8] 开机自启");
+            report.AppendLine("[9] 开机自启");
             report.AppendLine("    当前状态：" + (AutoStart.IsEnabled() ? "已开启" : "未开启"));
             report.AppendLine();
 
