@@ -28,25 +28,17 @@ namespace KeRing.UI
             AutoScaleMode = AutoScaleMode.None;
             Text = "选择班级";
             Font = new Font("Microsoft YaHei", 9F);
-            ClientSize = UiScale.S(460, 520);
+            ClientSize = UiScale.S(460, 498);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             StartPosition = FormStartPosition.CenterParent;
             MinimizeBox = false;
             MaximizeBox = false;
             ShowInTaskbar = false;
 
-            var hint = new Label
-            {
-                Text = "这台机器要给哪个班打铃？选一次即可，以后开机会自动记住。",
-                Location = UiScale.P(24, 20),
-                Size = UiScale.S(412, 44),
-                ForeColor = Color.FromArgb(110, 116, 122),
-            };
-
             _list = new ListBox
             {
-                Location = UiScale.P(24, 72),
-                Size = UiScale.S(412, 356),
+                Location = UiScale.P(24, 24),
+                Size = UiScale.S(412, 408),
                 DrawMode = DrawMode.OwnerDrawFixed,
                 ItemHeight = UiScale.S(RowHeight),
                 Font = new Font("Microsoft YaHei", 12F),
@@ -75,7 +67,6 @@ namespace KeRing.UI
             };
             ok.Click += (sender, args) => Accept();
 
-            Controls.Add(hint);
             Controls.Add(_list);
             Controls.Add(ok);
 
