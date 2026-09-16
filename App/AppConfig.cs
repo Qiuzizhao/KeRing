@@ -73,6 +73,26 @@ namespace KeRing.App
         /// <summary>播报文案后缀。</summary>
         public string AnnounceSuffix { get; set; } = "，请同学们做好课前准备";
 
+        // ---- 悬浮窗（见 docs/开发交接.md 7.12）----
+        /// <summary>要不要显示悬浮窗。**默认开**（使用方 2026-09-16 定的）。</summary>
+        public bool FloatingEnabled { get; set; } = true;
+
+        /// <summary>悬浮窗上次的位置。int.MinValue = 还没拖过，首次摆到屏幕右侧、垂直居中。</summary>
+        public int FloatingLeft { get; set; } = int.MinValue;
+        public int FloatingTop { get; set; } = int.MinValue;
+
+        /// <summary>悬浮窗不透明度（40~100，默认 92）：既能看见，又不挡死底下的东西。</summary>
+        public int FloatingOpacity { get; set; } = 92;
+
+        /// <summary>鼠标移到悬浮窗上要不要自动弹出全周预览（默认开）。</summary>
+        public bool FloatingShowWeekOnHover { get; set; } = true;
+
+        /// <summary>
+        /// 悬浮窗是否置顶。**默认不置顶**（＝沉在下面，会被别的窗口盖住；使用方 2026-09-16 定的）——
+        /// 小窗表头上那个**图钉**按钮切的就是它（见 docs/开发交接.md 7.12）。
+        /// </summary>
+        public bool FloatingTopMost { get; set; }
+
         // ---- 运行方式 ----
         /// <summary>开机自启，默认开启（安装后即生效）。</summary>
         public bool AutoStart { get; set; } = true;
@@ -136,6 +156,7 @@ namespace KeRing.App
             MorningSplitAfterPeriod = Clamp(MorningSplitAfterPeriod, 0, 20);
             ScheduleTimeoutSeconds = Clamp(ScheduleTimeoutSeconds, 1, 60);
             NtpTimeoutSeconds = Clamp(NtpTimeoutSeconds, 1, 30);
+            FloatingOpacity = Clamp(FloatingOpacity, 40, 100);
             GradeScheme = GradeSchemes.Normalize(GradeScheme);
             if (ScheduleApiUrl == null) { ScheduleApiUrl = string.Empty; }
             if (string.IsNullOrWhiteSpace(ScheduleCookieUser)) { ScheduleCookieUser = "KeRing"; }

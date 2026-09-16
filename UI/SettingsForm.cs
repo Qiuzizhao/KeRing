@@ -22,6 +22,7 @@ namespace KeRing.UI
 
         private readonly IList<SchoolClass> _classes;
         private readonly CheckBox _chkAutoStart;
+        private readonly CheckBox _chkFloating;
         private readonly Button _btnClass;
         private readonly Label _lblScheme;
         private readonly TouchStepper _stepperAhead;
@@ -32,6 +33,7 @@ namespace KeRing.UI
         private string _classId;
 
         public bool AutoStartEnabled { get; private set; }
+        public bool FloatingEnabled { get; private set; }
         public string SelectedClassId { get; private set; }
         public string GradeScheme { get; private set; }
         public int RemindAheadMinutes { get; private set; }
@@ -41,6 +43,7 @@ namespace KeRing.UI
 
         public SettingsForm(
             bool autoStart,
+            bool floatingEnabled,
             IList<SchoolClass> classes,
             string classId,
             string gradeScheme,
@@ -53,6 +56,7 @@ namespace KeRing.UI
             _classId = classId;
 
             AutoStartEnabled = autoStart;
+            FloatingEnabled = floatingEnabled;
             SelectedClassId = classId;
             GradeScheme = GradeSchemes.Normalize(gradeScheme);
             RemindAheadMinutes = aheadMinutes;
@@ -77,6 +81,15 @@ namespace KeRing.UI
                 AutoSize = true,
                 Location = UiScale.P(LabelX, 20),
                 Checked = autoStart,
+            };
+
+            // "显示悬浮窗"跟开机自启并排（这一行放得下两个复选框）
+            _chkFloating = new CheckBox
+            {
+                Text = "显示悬浮窗",
+                AutoSize = true,
+                Location = UiScale.P(250, 20),
+                Checked = floatingEnabled,
             };
 
             _btnClass = new Button
@@ -121,6 +134,7 @@ namespace KeRing.UI
             ok.Click += (sender, args) => Collect();
 
             Controls.Add(_chkAutoStart);
+            Controls.Add(_chkFloating);
             Controls.Add(MakeLabel("班级：", LabelX, 60));
             Controls.Add(_btnClass);
             Controls.Add(MakeLabel("时段方案：", LabelX, 60 + RowHeight));
@@ -160,6 +174,7 @@ namespace KeRing.UI
         private void Collect()
         {
             AutoStartEnabled = _chkAutoStart.Checked;
+            FloatingEnabled = _chkFloating.Checked;
             SelectedClassId = _classId;
             RemindAheadMinutes = _stepperAhead.Value;
             AnnounceVolumePercent = _stepperVolume.Value;

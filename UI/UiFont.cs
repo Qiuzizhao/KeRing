@@ -21,6 +21,9 @@ namespace KeRing.UI
         /// <summary>状态栏文字、窗口/托盘默认字体、节次列、对话框标签。</summary>
         public static readonly Font Body = new Font(Family, 10F);
 
+        /// <summary>更小一号：悬浮窗预览里的时刻、行标题下面的小字。</summary>
+        public static readonly Font Small = new Font(Family, 8.5F);
+
         /// <summary>表头（周一…）。</summary>
         public static readonly Font Header = new Font(Family, 10.5F, FontStyle.Bold);
 

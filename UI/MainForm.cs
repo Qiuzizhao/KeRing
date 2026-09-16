@@ -47,6 +47,7 @@ namespace KeRing.UI
         private Button _btnMinimize;
         private Button _btnMute;
         private ToolStripMenuItem _muteMenuItem;
+        private ToolStripMenuItem _floatingMenuItem;
         private StatusStrip _statusBar;
         private StatusStrip _statusBarBottom;
         private ToolStripStatusLabel _lblClock;
@@ -56,6 +57,8 @@ namespace KeRing.UI
         private ToolStripStatusLabel _lblAudio;
         private ToolStripStatusLabel _lblLastAnnounce;
         private NotifyIcon _tray;
+        /// <summary>悬浮窗（今天的课，鼠标移上去看全周）。默认建出来（见 AppConfig.FloatingEnabled）。</summary>
+        private FloatingForm _floating;
         private System.Windows.Forms.Timer _uiTimer;
 
         private WeekSchedule _schedule;
@@ -368,6 +371,10 @@ namespace KeRing.UI
             _muteMenuItem = new ToolStripMenuItem("静音");
             _muteMenuItem.Click += (sender, args) => ToggleMute();
             menu.Items.Add(_muteMenuItem);
+            _floatingMenuItem = new ToolStripMenuItem("显示悬浮窗");
+            _floatingMenuItem.Checked = _config.FloatingEnabled;
+            _floatingMenuItem.Click += (sender, args) => ToggleFloatingFromTray();
+            menu.Items.Add(_floatingMenuItem);
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add("退出", null, (sender, args) => ExitApplication());
             _tray.ContextMenuStrip = menu;
@@ -419,6 +426,10 @@ namespace KeRing.UI
             // 一方面用户先看到主界面不会觉得程序没反应，
             // 另一方面在 OnLoad 里开模态框会把主窗口的显示流程挡住。
             if (_needsClassChoice) { BeginInvoke((Action)EnsureClassChosen); }
+
+            // 悬浮窗放这儿建（不放 OnLoad）：**OnLoad 时主窗口还没真正显示**，
+            // 而 Windows 不会显示"被拥有/父窗口不可见"的窗口——实测踩过（建了但不可见）。
+            ApplyFloatingFromConfig();
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
@@ -438,6 +449,12 @@ namespace KeRing.UI
             _uiTimer.Stop();
             _uiTimer.Dispose();
             _scheduler.Dispose();
+
+            if (_floating != null && !_floating.IsDisposed)
+            {
+                _floating.Dispose();
+                _floating = null;
+            }
 
             if (_tray != null)
             {
@@ -470,6 +487,62 @@ namespace KeRing.UI
 
             UpdateNextReminderLabel(now);
             UpdateHighlights(now);
+            PushFloating(now);
+        }
+
+        // ---------- 悬浮窗 ----------
+
+        /// <summary>
+        /// 按配置建/关悬浮窗。它是**同一份课表的另一个视图**——数据由 `PushFloating` 推过去，
+        /// 它自己不取数、不自己算提醒（否则会出现"主窗口和悬浮窗显示不一致"这种最难查的问题）。
+        /// </summary>
+        private void ApplyFloatingFromConfig()
+        {
+            if (_config.FloatingEnabled)
+            {
+                if (_floating == null || _floating.IsDisposed)
+                {
+                    _floating = new FloatingForm(_config, this);
+                }
+
+                _floating.SetData(_schedule, _scheduler.NextReminder, AppClock.Now);
+                _floating.ApplyPosition();   // 先按内容定好尺寸，再摆位置（否则按旧高度算会顶出屏幕）
+                if (!_floating.Visible) { _floating.Show(); }
+                Logger.Info("悬浮窗已显示");
+            }
+            else if (_floating != null && !_floating.IsDisposed)
+            {
+                _floating.Hide();
+                _floating.Dispose();
+                _floating = null;
+                Logger.Info("悬浮窗已关闭");
+            }
+
+            if (_floatingMenuItem != null) { _floatingMenuItem.Checked = _config.FloatingEnabled; }
+        }
+
+        /// <summary>把当前课表和"下一个提醒点"推给悬浮窗（每秒跟着界面一起刷）。</summary>
+        private void PushFloating(DateTime now)
+        {
+            if (_floating == null || _floating.IsDisposed) { return; }
+
+            try
+            {
+                _floating.SetData(_schedule, _scheduler.NextReminder, now);
+            }
+            catch (Exception ex)
+            {
+                // 悬浮窗属于"锦上添花"，它出问题不能影响打铃和主界面
+                Logger.Warn("刷新悬浮窗失败：" + ex.Message);
+            }
+        }
+
+        /// <summary>托盘菜单里开关悬浮窗（跟设置里那个复选框是同一个配置项）。</summary>
+        private void ToggleFloatingFromTray()
+        {
+            _config.FloatingEnabled = !_config.FloatingEnabled;
+            _config.Save();
+            ApplyFloatingFromConfig();
         }
 
         // ---------- 课表 ----------
@@ -1241,6 +1314,7 @@ namespace KeRing.UI
         {
             using (var dialog = new SettingsForm(
                 _config.AutoStart,
+                _config.FloatingEnabled,
                 _school == null ? null : _school.Classes,
                 _config.SelectedClassId,
                 _config.GradeScheme,
@@ -1261,6 +1335,8 @@ namespace KeRing.UI
                 _config.RefreshIntervalMinutes = dialog.RefreshIntervalMinutes;
                 _config.GradeScheme = dialog.GradeScheme;
                 _config.AutoStart = dialog.AutoStartEnabled;
+                var floatingChanged = _config.FloatingEnabled != dialog.FloatingEnabled;
+                _config.FloatingEnabled = dialog.FloatingEnabled;
                 _config.Save();
 
                 _scheduler.UpdateAheadMinutes(_config.RemindAheadMinutes);
@@ -1283,13 +1359,16 @@ namespace KeRing.UI
                 }
 
                 Logger.Info(string.Format(
-                    "设置已更新：自启={0}，方案={1}，提前={2} 分钟，播报音量={3}%，播报次数={4} 遍，刷新间隔={5} 分钟",
+                    "设置已更新：自启={0}，悬浮窗={1}，方案={2}，提前={3} 分钟，播报音量={4}%，播报次数={5} 遍，刷新间隔={6} 分钟",
                     _config.AutoStart,
+                    _config.FloatingEnabled,
                     _config.GradeScheme,
                     _config.RemindAheadMinutes,
                     _config.AnnounceVolumePercent,
                     _config.AnnounceRepeatCount,
                     _config.RefreshIntervalMinutes));
+
+                if (floatingChanged) { ApplyFloatingFromConfig(); }
 
                 UpdateNextReminderLabel(AppClock.Now);
                 UpdateHighlights(AppClock.Now);
@@ -1350,7 +1429,8 @@ namespace KeRing.UI
             }
         }
 
-        private void ShowWindowNow()
+        /// <summary>把主窗口显示出来并提到前面（托盘双击、第二个实例的唤出信号、悬浮窗双击都用它）。</summary>
+        internal void ShowWindowNow()
         {
             Show();
             if (WindowState == FormWindowState.Minimized)

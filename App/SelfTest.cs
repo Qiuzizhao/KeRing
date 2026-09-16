@@ -42,6 +42,7 @@ namespace KeRing.App
             report.AppendLine("    播报音量：" + config.AnnounceVolumePercent + "%（播完恢复原值）");
             report.AppendLine("    播报次数：" + config.AnnounceRepeatCount + " 遍（每遍先响一次提示音，再念那句话）");
             report.AppendLine("    刷新间隔：" + config.RefreshIntervalMinutes + " 分钟");
+            report.AppendLine("    悬浮窗：" + (config.FloatingEnabled ? (config.FloatingTopMost ? "开（已置顶）" : "开（不置顶，沉在下面）") : "关"));
             report.AppendLine("    数据源：" + source.Description);
             report.AppendLine();
 
