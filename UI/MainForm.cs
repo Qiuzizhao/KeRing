@@ -1246,6 +1246,7 @@ namespace KeRing.UI
                 _config.GradeScheme,
                 _config.RemindAheadMinutes,
                 _config.AnnounceVolumePercent,
+                _config.AnnounceRepeatCount,
                 _config.RefreshIntervalMinutes))
             {
                 if (dialog.ShowDialog(this) != DialogResult.OK) { return; }
@@ -1256,6 +1257,7 @@ namespace KeRing.UI
                 _config.SelectedClassId = dialog.SelectedClassId;
                 _config.RemindAheadMinutes = dialog.RemindAheadMinutes;
                 _config.AnnounceVolumePercent = dialog.AnnounceVolumePercent;
+                _config.AnnounceRepeatCount = dialog.AnnounceRepeatCount;
                 _config.RefreshIntervalMinutes = dialog.RefreshIntervalMinutes;
                 _config.GradeScheme = dialog.GradeScheme;
                 _config.AutoStart = dialog.AutoStartEnabled;
@@ -1281,11 +1283,12 @@ namespace KeRing.UI
                 }
 
                 Logger.Info(string.Format(
-                    "设置已更新：自启={0}，方案={1}，提前={2} 分钟，播报音量={3}%，刷新间隔={4} 分钟",
+                    "设置已更新：自启={0}，方案={1}，提前={2} 分钟，播报音量={3}%，播报次数={4} 遍，刷新间隔={5} 分钟",
                     _config.AutoStart,
                     _config.GradeScheme,
                     _config.RemindAheadMinutes,
                     _config.AnnounceVolumePercent,
+                    _config.AnnounceRepeatCount,
                     _config.RefreshIntervalMinutes));
 
                 UpdateNextReminderLabel(AppClock.Now);

@@ -20,6 +20,9 @@ namespace KeRing.App.Audio
     /// </summary>
     internal sealed class Announcer
     {
+        /// <summary>连着念几遍时，两遍之间停多久（毫秒）。太短听着像一句，太长又拖沓。</summary>
+        private const int PauseBetweenRepeatsMs = 700;
+
         private readonly AudioController _audio = new AudioController();
         private readonly object _gate = new object();
 
@@ -42,34 +45,24 @@ namespace KeRing.App.Audio
                         Logger.Warn("拿不到系统音量，跳过临时提升");
                     }
 
-                    // 提示音单独兜底：铃声文件缺失或目录不可写时，不能让整条播报（含语音）一起失败
-                    try
-                    {
-                        // 现场替换过的铃声按文件播（wav/mp3 都认），否则播内嵌的那份
-                        var custom = BellTone.CustomFilePath();
-                        if (custom != null)
-                        {
-                            PlayFile(custom);
-                        }
-                        else
-                        {
-                            using (var bell = BellTone.OpenEmbedded())
-                            {
-                                PlayStream(bell);
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Error("提示音播放失败，改为只播语音", ex);
-                    }
-
                     var text = (config.AnnouncePrefix ?? string.Empty) + courseName +
                                (config.AnnounceSuffix ?? string.Empty);
-                    Speak(text);
+
+                    // 连念 N 遍，**每遍都是"先响一次提示音，再念这句话"**（叮—念、叮—念…）
+                    var repeat = config.AnnounceRepeatCount;
+                    if (repeat < 1) { repeat = 1; }
+
+                    for (var i = 0; i < repeat; i++)
+                    {
+                        if (i > 0) { Thread.Sleep(PauseBetweenRepeatsMs); }
+                        PlayBell();
+                        Speak(text);
+                    }
 
                     result.Ok = true;
-                    result.Message = "已播报：" + text;
+                    result.Message = repeat > 1
+                        ? string.Format("已播报（共 {0} 遍）：{1}", repeat, text)
+                        : "已播报：" + text;
                 }
                 catch (Exception ex)
                 {
@@ -119,6 +112,34 @@ namespace KeRing.App.Audio
             {
                 Logger.Warn("枚举语音失败：" + ex.Message);
                 return 0;
+            }
+        }
+
+        /// <summary>
+        /// 响一次提示音：现场替换过的铃声按文件播（wav/mp3 都认），否则播内嵌的那份。
+        /// **单独兜底**——铃声缺失或目录不可写时，不能让整条播报（含语音）一起失败。
+        /// 连念 N 遍时每遍都会调它一次（"叮—念"重复 N 次）。
+        /// </summary>
+        private static void PlayBell()
+        {
+            try
+            {
+                var custom = BellTone.CustomFilePath();
+                if (custom != null)
+                {
+                    PlayFile(custom);
+                }
+                else
+                {
+                    using (var bell = BellTone.OpenEmbedded())
+                    {
+                        PlayStream(bell);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("提示音播放失败，改为只播语音", ex);
             }
         }
 

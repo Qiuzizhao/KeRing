@@ -61,6 +61,12 @@ namespace KeRing.App
         /// <summary>播报时临时提升到的系统音量（百分比），播完恢复原值。</summary>
         public int AnnounceVolumePercent { get; set; } = 100;
 
+        /// <summary>
+        /// 一条播报念几遍。**每遍都是"先响一次提示音，再念这句话"**，两遍之间停一下。
+        /// 默认 3 遍：学生/老师漏听一遍还有下一遍（跟个人版一致，2026-09-16 加）。
+        /// </summary>
+        public int AnnounceRepeatCount { get; set; } = 3;
+
         /// <summary>播报文案前缀。</summary>
         public string AnnouncePrefix { get; set; } = "下节课，";
 
@@ -125,6 +131,7 @@ namespace KeRing.App
             if (string.IsNullOrWhiteSpace(ScheduleFilePath)) { ScheduleFilePath = "schedule.json"; }
             RemindAheadMinutes = Clamp(RemindAheadMinutes, 0, 60);
             AnnounceVolumePercent = Clamp(AnnounceVolumePercent, 0, 100);
+            AnnounceRepeatCount = Clamp(AnnounceRepeatCount, 1, 10);
             RefreshIntervalMinutes = Clamp(RefreshIntervalMinutes, 1, 24 * 60);
             MorningSplitAfterPeriod = Clamp(MorningSplitAfterPeriod, 0, 20);
             ScheduleTimeoutSeconds = Clamp(ScheduleTimeoutSeconds, 1, 60);

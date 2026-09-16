@@ -17,6 +17,8 @@ namespace KeRing.UI
         private const int UnitX = 356;
         private const int StepperTotalWidth = 232;
         private const int RowHeight = 64;
+        /// <summary>按钮的纵坐标：排在所有设置行下面（改行数时记得一起挪）。</summary>
+        private const int ButtonY = 464;
 
         private readonly IList<SchoolClass> _classes;
         private readonly CheckBox _chkAutoStart;
@@ -24,6 +26,7 @@ namespace KeRing.UI
         private readonly Label _lblScheme;
         private readonly TouchStepper _stepperAhead;
         private readonly TouchStepper _stepperVolume;
+        private readonly TouchStepper _stepperRepeat;
         private readonly TouchStepper _stepperRefresh;
 
         private string _classId;
@@ -33,6 +36,7 @@ namespace KeRing.UI
         public string GradeScheme { get; private set; }
         public int RemindAheadMinutes { get; private set; }
         public int AnnounceVolumePercent { get; private set; }
+        public int AnnounceRepeatCount { get; private set; }
         public int RefreshIntervalMinutes { get; private set; }
 
         public SettingsForm(
@@ -42,6 +46,7 @@ namespace KeRing.UI
             string gradeScheme,
             int aheadMinutes,
             int volumePercent,
+            int repeatCount,
             int refreshMinutes)
         {
             _classes = classes;
@@ -52,12 +57,14 @@ namespace KeRing.UI
             GradeScheme = GradeSchemes.Normalize(gradeScheme);
             RemindAheadMinutes = aheadMinutes;
             AnnounceVolumePercent = volumePercent;
+            AnnounceRepeatCount = repeatCount;
             RefreshIntervalMinutes = refreshMinutes;
 
             AutoScaleMode = AutoScaleMode.None;
             Text = "设置";
             Font = UiFont.Body;
-            ClientSize = UiScale.S(460, 448);
+            // 比原来多一行"播报次数"，所以对话框也高一行
+            ClientSize = UiScale.S(460, 528);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             StartPosition = FormStartPosition.CenterParent;
             MinimizeBox = false;
@@ -102,12 +109,13 @@ namespace KeRing.UI
 
             _stepperAhead = MakeStepper(0, 60, 1, aheadMinutes, 60 + RowHeight * 2);
             _stepperVolume = MakeStepper(0, 100, 5, volumePercent, 60 + RowHeight * 3);
-            _stepperRefresh = MakeStepper(1, 1440, 5, refreshMinutes, 60 + RowHeight * 4);
+            _stepperRepeat = MakeStepper(1, 10, 1, repeatCount, 60 + RowHeight * 4);
+            _stepperRefresh = MakeStepper(1, 1440, 5, refreshMinutes, 60 + RowHeight * 5);
 
-            var ok = DialogButtons.Primary("确定", 232, 390, 116, 44);
+            var ok = DialogButtons.Primary("确定", 232, ButtonY, 116, 44);
             ok.DialogResult = DialogResult.OK;
 
-            var cancel = DialogButtons.Secondary("取消", 356, 390, 88, 44);
+            var cancel = DialogButtons.Secondary("取消", 356, ButtonY, 88, 44);
             cancel.DialogResult = DialogResult.Cancel;
 
             ok.Click += (sender, args) => Collect();
@@ -123,9 +131,12 @@ namespace KeRing.UI
             Controls.Add(MakeLabel("播报音量：", LabelX, 60 + RowHeight * 3));
             Controls.Add(_stepperVolume);
             Controls.Add(MakeLabel("％", UnitX, 60 + RowHeight * 3));
-            Controls.Add(MakeLabel("自动刷新：", LabelX, 60 + RowHeight * 4));
+            Controls.Add(MakeLabel("播报次数：", LabelX, 60 + RowHeight * 4));
+            Controls.Add(_stepperRepeat);
+            Controls.Add(MakeLabel("遍", UnitX, 60 + RowHeight * 4));
+            Controls.Add(MakeLabel("自动刷新：", LabelX, 60 + RowHeight * 5));
             Controls.Add(_stepperRefresh);
-            Controls.Add(MakeLabel("分钟", UnitX, 60 + RowHeight * 4));
+            Controls.Add(MakeLabel("分钟", UnitX, 60 + RowHeight * 5));
             Controls.Add(ok);
             Controls.Add(cancel);
 
@@ -152,6 +163,7 @@ namespace KeRing.UI
             SelectedClassId = _classId;
             RemindAheadMinutes = _stepperAhead.Value;
             AnnounceVolumePercent = _stepperVolume.Value;
+            AnnounceRepeatCount = _stepperRepeat.Value;
             RefreshIntervalMinutes = _stepperRefresh.Value;
         }
 
