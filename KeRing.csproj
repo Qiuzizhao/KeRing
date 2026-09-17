@@ -18,7 +18,15 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
-    <PackageReference Include="NAudio" Version="2.2.1" />
+    <!--
+      NAudio 必须留在 1.10.0，**不要随手升级**：2.x 把实现拆成了 NAudio.Core / NAudio.Wasapi /
+      NAudio.WinMM 等包，而那些包**只发布了 netstandard2.0**，于是程序运行时需要系统的 netstandard
+      桥接程序集——那是 .NET Framework **4.7.1 以后**才有的东西。教室一体机常见的 Win10 LTSC / 精简系统
+      只有 4.6.x，会直接崩在启动第一步（"未能加载文件或程序集 netstandard, Version=2.0.0.0"，
+      2026-09-17 在一台大屏一体机上实测到）。1.10.0 带 net35 版本，net472 会自动选它，
+      只依赖 mscorlib / System，老机器照样能跑。
+    -->
+    <PackageReference Include="NAudio" Version="1.10.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Costura.Fody" Version="6.0.0" PrivateAssets="all" />
     <Reference Include="System.Speech" />
