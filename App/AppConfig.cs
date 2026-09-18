@@ -76,6 +76,18 @@ namespace KeRing.App
         /// <summary>设置对话框里那排"快捷开关"的档位（分钟）。</summary>
         public static readonly int[] RemindAheadPresets = { 10, 7, 5, 3, 0 };
 
+        /// <summary>
+        /// 没设过时默认点亮哪几档（使用方 2026-09-18 定的）：**班级版默认"7 分 + 3 分"**
+        /// （上课前 7 分钟提醒一次、3 分钟再提醒一次），个人版只默认 7 分。
+        /// </summary>
+        public static readonly int[] RemindAheadDefaults = { 7, 3 };
+
+        /// <summary>
+        /// 老配置里"单值那个字段"的老默认值。老配置没有列表字段时：等于它（说明没人动过提前量）
+        /// 就上新的默认档位；不等于它（有人改过，比如设成 5 分钟）就只留他改的那一档，不自作主张加档。
+        /// </summary>
+        private const int LegacyDefaultAheadMinutes = 7;
+
         /// <summary>最多允许几档提醒（档位多了会连着响个不停，最多 4 个）。</summary>
         public const int MaxRemindAheadSlots = 4;
 
@@ -209,14 +221,22 @@ namespace KeRing.App
 
             if (raw == null)
             {
-                result.Add(Clamp(legacyMinutes, 0, 60));
-                return result;
+                // 老配置（只有单值字段）：值正好是老默认 7 分钟 = 没人动过 → 用新的默认档位；
+                // 被人改过（例如 5 分钟）→ 只留他那一档，不自作主张多响一次
+                var legacy = Clamp(legacyMinutes, 0, 60);
+                var values = legacy == LegacyDefaultAheadMinutes ? RemindAheadDefaults : new[] { legacy };
+                foreach (var value in values)
+                {
+                    if (!result.Contains(value)) { result.Add(value); }
+                }
             }
-
-            foreach (var value in raw)
+            else
             {
-                var minutes = Clamp(value, 0, 60);
-                if (!result.Contains(minutes)) { result.Add(minutes); }
+                foreach (var value in raw)
+                {
+                    var minutes = Clamp(value, 0, 60);
+                    if (!result.Contains(minutes)) { result.Add(minutes); }
+                }
             }
 
             result.Sort((a, b) => b.CompareTo(a));
