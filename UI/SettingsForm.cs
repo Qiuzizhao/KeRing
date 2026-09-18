@@ -16,15 +16,8 @@ namespace KeRing.UI
         private const int StepperX = 112;
         private const int UnitX = 356;
         private const int StepperTotalWidth = 232;
-        /// <summary>
-        /// "提前提醒"那排开关的位置与总宽：从 148 铺到 436（右边距 24，跟确定/取消那排对齐）。
-        /// 起点比别的行靠右，是因为这一行的标题带单位——**单位写在标题里、按钮上只留数字**：
-        /// "10 分"在 12 磅粗体下要 51 像素，而 5 个按钮排一排每个只有 58 像素（文字区约 48），
-        /// 会被 WinForms 折成两行（2026-09-18 使用方截图反馈的正是这个）。只写数字只要 24 像素，
-        /// 而且**档位多了也不会折**（配置里手改出第 6 档时依然放得下）。
-        /// </summary>
-        private const int AheadToggleX = 148;
-        private const int AheadToggleWidth = 288;
+        /// <summary>这一行内容的右边界（客户区 460 减去右边距 24），跟确定/取消那排对齐。</summary>
+        private const int ContentRight = 436;
         private const int RowHeight = 64;
         /// <summary>按钮的纵坐标：排在所有设置行下面（改行数时记得一起挪）。</summary>
         private const int ButtonY = 464;
@@ -131,14 +124,31 @@ namespace KeRing.UI
             };
 
             // 提前提醒改成"快捷开关"（2026-09-18 使用方定的）：想提前 10 分钟和 7 分钟各响一次，
-            // 就把 10 和 7 都点亮；一个都不点 = 不打铃。按钮 58×56，一体机上手指点得准。
+            // 就把 10 和 7 都点亮；一个都不点 = 不打铃。
+            //
+            // **单位写在行标题里、按钮上只留数字**："10 分"在 12 磅粗体下要 51 像素，而 5 个按钮
+            // 排一排每个才 58 像素（文字区约 48），WinForms 会把它折成两行（使用方 2026-09-18 反馈）。
+            // 只写数字要 24 像素，档位再多也放得下。
+            //
+            // **开关的起点按标签宽度算，不写死**（中文标签 10 磅下 135 像素，写死就会压到按钮上，
+            // 使用方 2026-09-18 连续反馈了两次）。但**不能读 label.Right**：Label 在没加进窗体之前
+            // Font 还没继承、Width 还是默认的 100（实测少 29 像素，于是又压上了），
+            // 所以这里自己用 TextRenderer 量。
+            const string AheadLabelText = "提前提醒（分钟）：";
+            var aheadLabel = MakeLabel(AheadLabelText, LabelX, 60 + RowHeight * 2);
+            var aheadLabelWidth = TextRenderer.MeasureText(
+                AheadLabelText,
+                UiFont.Body,
+                new Size(int.MaxValue, int.MaxValue),
+                TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width;
+            var aheadX = UiScale.S(LabelX) + aheadLabelWidth + UiScale.S(9);
             _togglesAhead = new TouchToggles(
                 BuildAheadValues(aheadList),
                 aheadList,
-                string.Empty,   // 单位在行标题里（"提前提醒（分钟）："），按钮上只写数字
-                AheadToggleWidth)
+                string.Empty,   // 单位在行标题里，按钮上只写数字
+                UiScale.S(ContentRight) - aheadX)
             {
-                Location = UiScale.P(AheadToggleX, 60 + RowHeight * 2),
+                Location = new Point(aheadX, UiScale.S(60 + RowHeight * 2)),
             };
             _stepperVolume = MakeStepper(0, 100, 5, volumePercent, 60 + RowHeight * 3);
             _stepperRepeat = MakeStepper(1, 10, 1, repeatCount, 60 + RowHeight * 4);
@@ -158,8 +168,10 @@ namespace KeRing.UI
             Controls.Add(_btnClass);
             Controls.Add(MakeLabel("时段方案：", LabelX, 60 + RowHeight));
             Controls.Add(_lblScheme);
-            Controls.Add(MakeLabel("提前提醒（分钟）：", LabelX, 60 + RowHeight * 2));
+            // 先加开关、后加标签：万一日后标签又变宽，也是标签被按钮压住（难看但能点），
+            // 而不是标签盖住第一个按钮
             Controls.Add(_togglesAhead);
+            Controls.Add(aheadLabel);
             Controls.Add(MakeLabel("播报音量：", LabelX, 60 + RowHeight * 3));
             Controls.Add(_stepperVolume);
             Controls.Add(MakeLabel("％", UnitX, 60 + RowHeight * 3));

@@ -30,17 +30,20 @@ namespace KeRing.UI
         /// <summary>任意一个开关被点动之后触发（使用方不用它做联动，只是留个口子）。</summary>
         public event EventHandler SelectionChanged;
 
-        public TouchToggles(int[] values, IList<int> selected, string unit, int totalWidth)
+        /// <summary>widthPixels 是**实际像素**宽度（调用方按自己的布局算好，例如"从标签右边开始铺到右边距"）。</summary>
+        public TouchToggles(int[] values, IList<int> selected, string unit, int widthPixels)
         {
             _values = values ?? new int[0];
             _on = new bool[_values.Length];
             BackColor = SystemColors.Control;
 
             var count = _values.Length;
-            if (count == 0) { return; }
+            if (count == 0 || widthPixels <= 0) { return; }
 
-            var buttonWidth = (totalWidth - Gap * (count - 1)) / count;
-            Size = UiScale.S(totalWidth, Height_);
+            var gap = UiScale.S(Gap);
+            var buttonHeight = UiScale.S(Height_);
+            var buttonWidth = (widthPixels - gap * (count - 1)) / count;
+            Size = new Size(widthPixels, buttonHeight);
 
             for (var i = 0; i < count; i++)
             {
@@ -50,8 +53,8 @@ namespace KeRing.UI
                 var button = new Button
                 {
                     Text = value + unit,
-                    Location = UiScale.P(i * (buttonWidth + Gap), 0),
-                    Size = UiScale.S(buttonWidth, Height_),
+                    Location = new Point(i * (buttonWidth + gap), 0),
+                    Size = new Size(buttonWidth, buttonHeight),
                     FlatStyle = FlatStyle.Flat,
                     ForeColor = Color.White,
                     Font = UiFont.DialogButton,
