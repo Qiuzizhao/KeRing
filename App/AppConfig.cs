@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using Newtonsoft.Json;
 
@@ -55,8 +56,28 @@ namespace KeRing.App
         public string SelectedClassId { get; set; } = string.Empty;
 
         // ---- 打铃规则 ----
-        /// <summary>提前几分钟提醒。当前约定：上课前 7 分钟。</summary>
+        /// <summary>
+        /// 提前提醒的档位（分钟）：上课前第 N 分钟响一次。**降序、去重、0~60、最多 4 档**，
+        /// 空列表 = 不打铃（使用者故意全关掉）。
+        /// 例：[7, 5] = 上课前 7 分钟响一次、5 分钟再响一次；0 = 正点（等于上课铃）。
+        /// 界面上是"快捷开关"（档位见 RemindAheadPresets），但配置里允许任意值——
+        /// 不在预设里的值，设置对话框也会把它显示成一个开关，不会一打开设置就被悄悄改掉。
+        /// **null = 配置里根本没有这个字段（老配置）**，由 Normalize 用旧字段补上。
+        /// </summary>
+        public List<int> RemindAheadList { get; set; }
+
+        /// <summary>
+        /// 【旧字段，只为兼容】单值版的提前分钟数。老配置里只有它，`Normalize` 会把它搬进
+        /// `RemindAheadList`；反过来说，保存时它会被同步成"列表里最大的那一档"，
+        /// 好让**老版本的程序**读这份配置仍然正常（回滚或新旧混用时不至于莫名不响铃）。
+        /// </summary>
         public int RemindAheadMinutes { get; set; } = 7;
+
+        /// <summary>设置对话框里那排"快捷开关"的档位（分钟）。</summary>
+        public static readonly int[] RemindAheadPresets = { 10, 7, 5, 3, 0 };
+
+        /// <summary>最多允许几档提醒（档位多了会连着响个不停，最多 4 个）。</summary>
+        public const int MaxRemindAheadSlots = 4;
 
         /// <summary>播报时临时提升到的系统音量（百分比），播完恢复原值。</summary>
         public int AnnounceVolumePercent { get; set; } = 100;
@@ -150,6 +171,9 @@ namespace KeRing.App
         {
             if (string.IsNullOrWhiteSpace(ScheduleFilePath)) { ScheduleFilePath = "schedule.json"; }
             RemindAheadMinutes = Clamp(RemindAheadMinutes, 0, 60);
+            RemindAheadList = NormalizeAheadList(RemindAheadList, RemindAheadMinutes);
+            // 老字段跟着列表走：让旧版本的程序读这份配置时还有合理的值（列表被全关掉时保持原值）
+            if (RemindAheadList.Count > 0) { RemindAheadMinutes = RemindAheadList[0]; }
             AnnounceVolumePercent = Clamp(AnnounceVolumePercent, 0, 100);
             AnnounceRepeatCount = Clamp(AnnounceRepeatCount, 1, 10);
             RefreshIntervalMinutes = Clamp(RefreshIntervalMinutes, 1, 24 * 60);
@@ -171,6 +195,33 @@ namespace KeRing.App
             if (value < min) { return min; }
             if (value > max) { return max; }
             return value;
+        }
+
+        /// <summary>
+        /// 整理提前提醒的档位：去掉越界值、去重、**大的在前**（先"提前 10 分钟"再"提前 5 分钟"），
+        /// 超过 MaxRemindAheadSlots 档就把最靠后的（最接近上课的）丢掉。
+        /// `raw == null` 表示配置里没有这个字段（老配置）→ 用旧字段的单值补一档；
+        /// `raw` 是**空列表**表示使用者故意把提醒全关了 → 保持空，不补。
+        /// </summary>
+        private static List<int> NormalizeAheadList(List<int> raw, int legacyMinutes)
+        {
+            var result = new List<int>();
+
+            if (raw == null)
+            {
+                result.Add(Clamp(legacyMinutes, 0, 60));
+                return result;
+            }
+
+            foreach (var value in raw)
+            {
+                var minutes = Clamp(value, 0, 60);
+                if (!result.Contains(minutes)) { result.Add(minutes); }
+            }
+
+            result.Sort((a, b) => b.CompareTo(a));
+            while (result.Count > MaxRemindAheadSlots) { result.RemoveAt(result.Count - 1); }
+            return result;
         }
     }
 }

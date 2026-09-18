@@ -16,6 +16,9 @@ namespace KeRing.UI
         private const int StepperX = 112;
         private const int UnitX = 356;
         private const int StepperTotalWidth = 232;
+        /// <summary>"提前提醒"那排开关的位置与总宽：从 112 铺到 436（右边距 24，跟确定/取消那排对齐）。</summary>
+        private const int AheadToggleX = 112;
+        private const int AheadToggleWidth = 324;
         private const int RowHeight = 64;
         /// <summary>按钮的纵坐标：排在所有设置行下面（改行数时记得一起挪）。</summary>
         private const int ButtonY = 464;
@@ -25,7 +28,7 @@ namespace KeRing.UI
         private readonly CheckBox _chkFloating;
         private readonly Button _btnClass;
         private readonly Label _lblScheme;
-        private readonly TouchStepper _stepperAhead;
+        private readonly TouchToggles _togglesAhead;
         private readonly TouchStepper _stepperVolume;
         private readonly TouchStepper _stepperRepeat;
         private readonly TouchStepper _stepperRefresh;
@@ -36,7 +39,8 @@ namespace KeRing.UI
         public bool FloatingEnabled { get; private set; }
         public string SelectedClassId { get; private set; }
         public string GradeScheme { get; private set; }
-        public int RemindAheadMinutes { get; private set; }
+        /// <summary>选中的提前提醒档位（分钟，大的在前）；空列表 = 一档都不打铃。</summary>
+        public List<int> RemindAheadList { get; private set; }
         public int AnnounceVolumePercent { get; private set; }
         public int AnnounceRepeatCount { get; private set; }
         public int RefreshIntervalMinutes { get; private set; }
@@ -47,7 +51,7 @@ namespace KeRing.UI
             IList<SchoolClass> classes,
             string classId,
             string gradeScheme,
-            int aheadMinutes,
+            IList<int> aheadList,
             int volumePercent,
             int repeatCount,
             int refreshMinutes)
@@ -59,7 +63,7 @@ namespace KeRing.UI
             FloatingEnabled = floatingEnabled;
             SelectedClassId = classId;
             GradeScheme = GradeSchemes.Normalize(gradeScheme);
-            RemindAheadMinutes = aheadMinutes;
+            RemindAheadList = new List<int>(aheadList ?? new List<int>());
             AnnounceVolumePercent = volumePercent;
             AnnounceRepeatCount = repeatCount;
             RefreshIntervalMinutes = refreshMinutes;
@@ -120,7 +124,16 @@ namespace KeRing.UI
                 Location = UiScale.P(StepperX, 60 + RowHeight + 16),
             };
 
-            _stepperAhead = MakeStepper(0, 60, 1, aheadMinutes, 60 + RowHeight * 2);
+            // 提前提醒改成"快捷开关"（2026-09-18 使用方定的）：想提前 10 分钟和 7 分钟各响一次，
+            // 就把 10 和 7 都点亮；一个都不点 = 不打铃。按钮 58×56，一体机上手指点得准。
+            _togglesAhead = new TouchToggles(
+                BuildAheadValues(aheadList),
+                aheadList,
+                " 分",
+                AheadToggleWidth)
+            {
+                Location = UiScale.P(AheadToggleX, 60 + RowHeight * 2),
+            };
             _stepperVolume = MakeStepper(0, 100, 5, volumePercent, 60 + RowHeight * 3);
             _stepperRepeat = MakeStepper(1, 10, 1, repeatCount, 60 + RowHeight * 4);
             _stepperRefresh = MakeStepper(1, 1440, 5, refreshMinutes, 60 + RowHeight * 5);
@@ -140,8 +153,7 @@ namespace KeRing.UI
             Controls.Add(MakeLabel("时段方案：", LabelX, 60 + RowHeight));
             Controls.Add(_lblScheme);
             Controls.Add(MakeLabel("提前提醒：", LabelX, 60 + RowHeight * 2));
-            Controls.Add(_stepperAhead);
-            Controls.Add(MakeLabel("分钟", UnitX, 60 + RowHeight * 2));
+            Controls.Add(_togglesAhead);
             Controls.Add(MakeLabel("播报音量：", LabelX, 60 + RowHeight * 3));
             Controls.Add(_stepperVolume);
             Controls.Add(MakeLabel("％", UnitX, 60 + RowHeight * 3));
@@ -176,7 +188,7 @@ namespace KeRing.UI
             AutoStartEnabled = _chkAutoStart.Checked;
             FloatingEnabled = _chkFloating.Checked;
             SelectedClassId = _classId;
-            RemindAheadMinutes = _stepperAhead.Value;
+            RemindAheadList = _togglesAhead.Selected;
             AnnounceVolumePercent = _stepperVolume.Value;
             AnnounceRepeatCount = _stepperRepeat.Value;
             RefreshIntervalMinutes = _stepperRefresh.Value;
@@ -218,6 +230,28 @@ namespace KeRing.UI
             {
                 Location = UiScale.P(StepperX, y),
             };
+        }
+
+        /// <summary>
+        /// 那排开关显示哪些档位：**预设档 + 配置里已有的非预设值**（都按降序排）。
+        /// 为什么要带上非预设值：配置是纯文本、允许手改（比如有人把档位设成 8 分钟），
+        /// 界面要是不认它，一打开设置再点确定就把它悄悄抹掉了——宁可多画一个按钮，也别改使用者的值。
+        /// </summary>
+        private static int[] BuildAheadValues(IList<int> current)
+        {
+            var values = new List<int>(AppConfig.RemindAheadPresets);
+
+            if (current != null)
+            {
+                foreach (var value in current)
+                {
+                    if (value < 0 || value > 60) { continue; }
+                    if (!values.Contains(value)) { values.Add(value); }
+                }
+            }
+
+            values.Sort((a, b) => b.CompareTo(a));
+            return values.ToArray();
         }
 
         /// <summary>行标题：往下偏 17，好跟 56 高的步进控件垂直居中。</summary>

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 using System.Threading;
@@ -38,7 +39,7 @@ namespace KeRing.App
                 ? "（尚未选择，首次启动会弹选择框）"
                 : config.SelectedClassId));
             report.AppendLine("    作息方案：" + config.GradeScheme);
-            report.AppendLine("    提前提醒：" + config.RemindAheadMinutes + " 分钟");
+            report.AppendLine("    提前提醒：" + DescribeAheadList(config.RemindAheadList));
             report.AppendLine("    播报音量：" + config.AnnounceVolumePercent + "%（播完恢复原值）");
             report.AppendLine("    播报次数：" + config.AnnounceRepeatCount + " 遍（每遍先响一次提示音，再念那句话）");
             report.AppendLine("    刷新间隔：" + config.RefreshIntervalMinutes + " 分钟");
@@ -80,7 +81,7 @@ namespace KeRing.App
 
                 var weekday = ReminderPlanner.ToWeekday(AppClock.Now.DayOfWeek);
                 report.AppendLine("[4] 今天（" + ReminderPlanner.WeekdayName(weekday) + "）的打铃点");
-                var today = ReminderPlanner.BuildForDay(view, AppClock.Now, config.RemindAheadMinutes);
+                var today = ReminderPlanner.BuildForDay(view, AppClock.Now, config.RemindAheadList);
                 if (today.Count == 0)
                 {
                     report.AppendLine("    （今天没有课）");
@@ -93,7 +94,7 @@ namespace KeRing.App
                 report.AppendLine();
 
                 DateTime fireTime;
-                var next = ReminderPlanner.FindNext(view, AppClock.Now, config.RemindAheadMinutes, out fireTime);
+                var next = ReminderPlanner.FindNext(view, AppClock.Now, config.RemindAheadList, out fireTime);
                 report.AppendLine("[5] 下一个提醒点");
                 report.AppendLine("    " + (next == null
                     ? "找不到"
@@ -182,6 +183,21 @@ namespace KeRing.App
         /// 只播报一次，用于在目标机上确认"真的能出声"：KeRing.exe --say 语文
         /// 会打印播报前后的系统音量，确认临时提升后已恢复原值。
         /// </summary>
+        /// <summary>提前提醒档位 → 报告里好看的样子（"7、5 分钟"）；一档都没有时说明白。</summary>
+        private static string DescribeAheadList(IList<int> list)
+        {
+            if (list == null || list.Count == 0) { return "（一档都没设，不打铃）"; }
+
+            var parts = new StringBuilder();
+            foreach (var value in list)
+            {
+                if (parts.Length > 0) { parts.Append("、"); }
+                parts.Append(value);
+            }
+
+            return parts + " 分钟";
+        }
+
         public static int Say(string course)
         {
             var config = AppConfig.Load();

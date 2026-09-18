@@ -105,7 +105,7 @@ namespace KeRing.UI
             _config = config;
             _showSignal = showSignal;
             _scale = DetectScale();
-            _scheduler = new Scheduler(config.RemindAheadMinutes);
+            _scheduler = new Scheduler(config.RemindAheadList);
             _scheduler.ReminderDue += OnReminderDue;
 
             BuildUi();
@@ -1281,6 +1281,16 @@ namespace KeRing.UI
             return string.Format("{0} 秒", (int)span.TotalSeconds);
         }
 
+        /// <summary>提前提醒档位 → 日志里好看的样子（"7、5 分钟"）；一档都没有时说明白。</summary>
+        private static string DescribeAheadList(IList<int> list)
+        {
+            if (list == null || list.Count == 0) { return "（一档都没设，不打铃）"; }
+
+            var parts = new List<string>();
+            foreach (var value in list) { parts.Add(value.ToString()); }
+            return string.Join("、", parts.ToArray()) + " 分钟";
+        }
+
         // ---------- 托盘 / 自启 ----------
 
         /// <summary>
@@ -1318,7 +1328,7 @@ namespace KeRing.UI
                 _school == null ? null : _school.Classes,
                 _config.SelectedClassId,
                 _config.GradeScheme,
-                _config.RemindAheadMinutes,
+                _config.RemindAheadList,
                 _config.AnnounceVolumePercent,
                 _config.AnnounceRepeatCount,
                 _config.RefreshIntervalMinutes))
@@ -1329,7 +1339,7 @@ namespace KeRing.UI
                 var classChanged = !string.Equals(_config.SelectedClassId, dialog.SelectedClassId, StringComparison.Ordinal);
 
                 _config.SelectedClassId = dialog.SelectedClassId;
-                _config.RemindAheadMinutes = dialog.RemindAheadMinutes;
+                _config.RemindAheadList = dialog.RemindAheadList;
                 _config.AnnounceVolumePercent = dialog.AnnounceVolumePercent;
                 _config.AnnounceRepeatCount = dialog.AnnounceRepeatCount;
                 _config.RefreshIntervalMinutes = dialog.RefreshIntervalMinutes;
@@ -1339,7 +1349,7 @@ namespace KeRing.UI
                 _config.FloatingEnabled = dialog.FloatingEnabled;
                 _config.Save();
 
-                _scheduler.UpdateAheadMinutes(_config.RemindAheadMinutes);
+                _scheduler.UpdateAheadList(_config.RemindAheadList);
                 _lastRefresh = AppClock.Now; // 刚改完刷新间隔，别马上又刷一次
 
                 // 换了班级或作息方案：课表内容/时刻都变了，重建界面与打铃点
@@ -1359,11 +1369,11 @@ namespace KeRing.UI
                 }
 
                 Logger.Info(string.Format(
-                    "设置已更新：自启={0}，悬浮窗={1}，方案={2}，提前={3} 分钟，播报音量={4}%，播报次数={5} 遍，刷新间隔={6} 分钟",
+                    "设置已更新：自启={0}，悬浮窗={1}，方案={2}，提前={3}，播报音量={4}%，播报次数={5} 遍，刷新间隔={6} 分钟",
                     _config.AutoStart,
                     _config.FloatingEnabled,
                     _config.GradeScheme,
-                    _config.RemindAheadMinutes,
+                    DescribeAheadList(_config.RemindAheadList),
                     _config.AnnounceVolumePercent,
                     _config.AnnounceRepeatCount,
                     _config.RefreshIntervalMinutes));

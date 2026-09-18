@@ -18,7 +18,8 @@ namespace KeRing.App
     {
         private readonly object _gate = new object();
         private readonly System.Timers.Timer _timer;
-        private int _aheadMinutes;
+        /// <summary>提前提醒的档位（降序）。改它只走 SetAhead，保证顺序/去重一致。</summary>
+        private readonly List<int> _aheadList = new List<int>();
 
         private WeekSchedule _schedule;
         private List<ReminderPoint> _pointsOfToday = new List<ReminderPoint>();
@@ -26,9 +27,9 @@ namespace KeRing.App
 
         public event EventHandler<ReminderEventArgs> ReminderDue;
 
-        public Scheduler(int aheadMinutes)
+        public Scheduler(IList<int> aheadMinutesList)
         {
-            _aheadMinutes = aheadMinutes;
+            SetAhead(aheadMinutesList);
             _timer = new System.Timers.Timer(1000);
             _timer.AutoReset = true;
             _timer.Elapsed += OnElapsed;
@@ -48,14 +49,30 @@ namespace KeRing.App
             }
         }
 
-        /// <summary>改了提前量就立刻按新规则重建当天的打铃点。</summary>
-        public void UpdateAheadMinutes(int minutes)
+        /// <summary>改了档位就立刻按新规则重建当天的打铃点。</summary>
+        public void UpdateAheadList(IList<int> aheadMinutesList)
         {
             lock (_gate)
             {
-                _aheadMinutes = minutes;
+                SetAhead(aheadMinutesList);
                 if (_schedule != null) { Rebuild(AppClock.Now); }
             }
+        }
+
+        /// <summary>存一份档位（去重、大的在前）。调用方给的列表可能被改，所以复制一份。</summary>
+        private void SetAhead(IList<int> source)
+        {
+            _aheadList.Clear();
+            if (source == null) { return; }
+
+            foreach (var value in source)
+            {
+                if (value < 0 || value > 60) { continue; }
+                if (_aheadList.Contains(value)) { continue; }
+                _aheadList.Add(value);
+            }
+
+            _aheadList.Sort((a, b) => b.CompareTo(a));
         }
 
         /// <summary>下一个提醒点（今天没有就往后找），界面用。</summary>
@@ -66,14 +83,14 @@ namespace KeRing.App
                 DateTime fireTime;
                 lock (_gate)
                 {
-                    return ReminderPlanner.FindNext(_schedule, AppClock.Now, _aheadMinutes, out fireTime);
+                    return ReminderPlanner.FindNext(_schedule, AppClock.Now, _aheadList, out fireTime);
                 }
             }
         }
 
         private void Rebuild(DateTime now)
         {
-            _pointsOfToday = ReminderPlanner.BuildForDay(_schedule, now, _aheadMinutes);
+            _pointsOfToday = ReminderPlanner.BuildForDay(_schedule, now, _aheadList);
             _pointsDate = now.Date;
 
             foreach (var point in _pointsOfToday)
