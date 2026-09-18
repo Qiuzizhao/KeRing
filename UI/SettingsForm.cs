@@ -16,9 +16,15 @@ namespace KeRing.UI
         private const int StepperX = 112;
         private const int UnitX = 356;
         private const int StepperTotalWidth = 232;
-        /// <summary>"提前提醒"那排开关的位置与总宽：从 112 铺到 436（右边距 24，跟确定/取消那排对齐）。</summary>
-        private const int AheadToggleX = 112;
-        private const int AheadToggleWidth = 324;
+        /// <summary>
+        /// "提前提醒"那排开关的位置与总宽：从 148 铺到 436（右边距 24，跟确定/取消那排对齐）。
+        /// 起点比别的行靠右，是因为这一行的标题带单位——**单位写在标题里、按钮上只留数字**：
+        /// "10 分"在 12 磅粗体下要 51 像素，而 5 个按钮排一排每个只有 58 像素（文字区约 48），
+        /// 会被 WinForms 折成两行（2026-09-18 使用方截图反馈的正是这个）。只写数字只要 24 像素，
+        /// 而且**档位多了也不会折**（配置里手改出第 6 档时依然放得下）。
+        /// </summary>
+        private const int AheadToggleX = 148;
+        private const int AheadToggleWidth = 288;
         private const int RowHeight = 64;
         /// <summary>按钮的纵坐标：排在所有设置行下面（改行数时记得一起挪）。</summary>
         private const int ButtonY = 464;
@@ -129,7 +135,7 @@ namespace KeRing.UI
             _togglesAhead = new TouchToggles(
                 BuildAheadValues(aheadList),
                 aheadList,
-                " 分",
+                string.Empty,   // 单位在行标题里（"提前提醒（分钟）："），按钮上只写数字
                 AheadToggleWidth)
             {
                 Location = UiScale.P(AheadToggleX, 60 + RowHeight * 2),
@@ -152,7 +158,7 @@ namespace KeRing.UI
             Controls.Add(_btnClass);
             Controls.Add(MakeLabel("时段方案：", LabelX, 60 + RowHeight));
             Controls.Add(_lblScheme);
-            Controls.Add(MakeLabel("提前提醒：", LabelX, 60 + RowHeight * 2));
+            Controls.Add(MakeLabel("提前提醒（分钟）：", LabelX, 60 + RowHeight * 2));
             Controls.Add(_togglesAhead);
             Controls.Add(MakeLabel("播报音量：", LabelX, 60 + RowHeight * 3));
             Controls.Add(_stepperVolume);
