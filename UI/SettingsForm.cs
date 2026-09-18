@@ -19,8 +19,16 @@ namespace KeRing.UI
         /// <summary>这一行内容的右边界（客户区 460 减去右边距 24），跟确定/取消那排对齐。</summary>
         private const int ContentRight = 436;
         private const int RowHeight = 64;
+        /// <summary>"提前提醒"那一行的 y（前面是"班级 / 时段方案"两行）。</summary>
+        private const int AheadRowY = 60 + RowHeight * 2;
+        /// <summary>开关排**两行**，所以这一行占 120 像素而不是 64（使用方 2026-09-18 要求分两行）。</summary>
+        private const int AheadBlockHeight = 120;
+        /// <summary>开关每行放几个：5 档 = 3 + 2，按钮能做到 84 像素宽，比挤在一行里舒服得多。</summary>
+        private const int AheadColumns = 3;
+        /// <summary>"提前提醒"下面那一行（播报音量）的 y：跳过两行的开关，再留 8 像素。</summary>
+        private const int AfterAheadY = AheadRowY + AheadBlockHeight + 8;
         /// <summary>按钮的纵坐标：排在所有设置行下面（改行数时记得一起挪）。</summary>
-        private const int ButtonY = 464;
+        private const int ButtonY = 528;
 
         private readonly IList<SchoolClass> _classes;
         private readonly CheckBox _chkAutoStart;
@@ -70,8 +78,8 @@ namespace KeRing.UI
             AutoScaleMode = AutoScaleMode.None;
             Text = "设置";
             Font = UiFont.Body;
-            // 比原来多一行"播报次数"，所以对话框也高一行
-            ClientSize = UiScale.S(460, 528);
+            // 比原来多一行"播报次数"、提前提醒又排成两行开关，所以对话框比最初高了两行
+            ClientSize = UiScale.S(460, 592);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             StartPosition = FormStartPosition.CenterParent;
             MinimizeBox = false;
@@ -135,7 +143,8 @@ namespace KeRing.UI
             // Font 还没继承、Width 还是默认的 100（实测少 29 像素，于是又压上了），
             // 所以这里自己用 TextRenderer 量。
             const string AheadLabelText = "提前提醒（分钟）：";
-            var aheadLabel = MakeLabel(AheadLabelText, LabelX, 60 + RowHeight * 2);
+            // 标签在两行开关中间垂直居中：MakeLabel 内部还会 +17，所以这里传 AheadRowY + 32
+            var aheadLabel = MakeLabel(AheadLabelText, LabelX, AheadRowY + 32);
             var aheadLabelWidth = TextRenderer.MeasureText(
                 AheadLabelText,
                 UiFont.Body,
@@ -146,13 +155,14 @@ namespace KeRing.UI
                 BuildAheadValues(aheadList),
                 aheadList,
                 string.Empty,   // 单位在行标题里，按钮上只写数字
-                UiScale.S(ContentRight) - aheadX)
+                UiScale.S(ContentRight) - aheadX,
+                AheadColumns)
             {
-                Location = new Point(aheadX, UiScale.S(60 + RowHeight * 2)),
+                Location = new Point(aheadX, UiScale.S(AheadRowY)),
             };
-            _stepperVolume = MakeStepper(0, 100, 5, volumePercent, 60 + RowHeight * 3);
-            _stepperRepeat = MakeStepper(1, 10, 1, repeatCount, 60 + RowHeight * 4);
-            _stepperRefresh = MakeStepper(1, 1440, 5, refreshMinutes, 60 + RowHeight * 5);
+            _stepperVolume = MakeStepper(0, 100, 5, volumePercent, AfterAheadY);
+            _stepperRepeat = MakeStepper(1, 10, 1, repeatCount, AfterAheadY + RowHeight);
+            _stepperRefresh = MakeStepper(1, 1440, 5, refreshMinutes, AfterAheadY + RowHeight * 2);
 
             var ok = DialogButtons.Primary("确定", 232, ButtonY, 116, 44);
             ok.DialogResult = DialogResult.OK;
@@ -172,15 +182,15 @@ namespace KeRing.UI
             // 而不是标签盖住第一个按钮
             Controls.Add(_togglesAhead);
             Controls.Add(aheadLabel);
-            Controls.Add(MakeLabel("播报音量：", LabelX, 60 + RowHeight * 3));
+            Controls.Add(MakeLabel("播报音量：", LabelX, AfterAheadY));
             Controls.Add(_stepperVolume);
-            Controls.Add(MakeLabel("％", UnitX, 60 + RowHeight * 3));
-            Controls.Add(MakeLabel("播报次数：", LabelX, 60 + RowHeight * 4));
+            Controls.Add(MakeLabel("％", UnitX, AfterAheadY));
+            Controls.Add(MakeLabel("播报次数：", LabelX, AfterAheadY + RowHeight));
             Controls.Add(_stepperRepeat);
-            Controls.Add(MakeLabel("遍", UnitX, 60 + RowHeight * 4));
-            Controls.Add(MakeLabel("自动刷新：", LabelX, 60 + RowHeight * 5));
+            Controls.Add(MakeLabel("遍", UnitX, AfterAheadY + RowHeight));
+            Controls.Add(MakeLabel("自动刷新：", LabelX, AfterAheadY + RowHeight * 2));
             Controls.Add(_stepperRefresh);
-            Controls.Add(MakeLabel("分钟", UnitX, 60 + RowHeight * 5));
+            Controls.Add(MakeLabel("分钟", UnitX, AfterAheadY + RowHeight * 2));
             Controls.Add(ok);
             Controls.Add(cancel);
 

@@ -30,8 +30,12 @@ namespace KeRing.UI
         /// <summary>任意一个开关被点动之后触发（使用方不用它做联动，只是留个口子）。</summary>
         public event EventHandler SelectionChanged;
 
-        /// <summary>widthPixels 是**实际像素**宽度（调用方按自己的布局算好，例如"从标签右边开始铺到右边距"）。</summary>
-        public TouchToggles(int[] values, IList<int> selected, string unit, int widthPixels)
+        /// <summary>
+        /// widthPixels 是**实际像素**宽度（调用方按自己的布局算好，例如"从标签右边开始铺到右边距"）；
+        /// columns 是每行放几个——档位多的时候排成两行，按钮就能做得大（使用方 2026-09-18 提的：
+        /// "把几个选项放到第二行"）。所有按钮一样宽，最后一行不满就从左边排起。
+        /// </summary>
+        public TouchToggles(int[] values, IList<int> selected, string unit, int widthPixels, int columns)
         {
             _values = values ?? new int[0];
             _on = new bool[_values.Length];
@@ -39,11 +43,14 @@ namespace KeRing.UI
 
             var count = _values.Length;
             if (count == 0 || widthPixels <= 0) { return; }
+            if (columns < 1) { columns = 1; }
+            if (columns > count) { columns = count; }
 
             var gap = UiScale.S(Gap);
             var buttonHeight = UiScale.S(Height_);
-            var buttonWidth = (widthPixels - gap * (count - 1)) / count;
-            Size = new Size(widthPixels, buttonHeight);
+            var buttonWidth = (widthPixels - gap * (columns - 1)) / columns;
+            var rows = (count + columns - 1) / columns;
+            Size = new Size(widthPixels, rows * buttonHeight + (rows - 1) * gap);
 
             for (var i = 0; i < count; i++)
             {
@@ -53,7 +60,7 @@ namespace KeRing.UI
                 var button = new Button
                 {
                     Text = value + unit,
-                    Location = new Point(i * (buttonWidth + gap), 0),
+                    Location = new Point((i % columns) * (buttonWidth + gap), (i / columns) * (buttonHeight + gap)),
                     Size = new Size(buttonWidth, buttonHeight),
                     FlatStyle = FlatStyle.Flat,
                     ForeColor = Color.White,
