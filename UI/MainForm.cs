@@ -303,16 +303,41 @@ namespace KeRing.UI
             _grid.CellPainting += OnGridCellPainting;
         }
 
-        /// <summary>水印：每格画完自己的内容之后，把落在这一格里的那部分图叠上去。</summary>
+        /// <summary>
+        /// 水印：**垫在白底下面一层**，文字／高亮块／上下午分隔带都盖在它上面（使用方 2026-09-20 要求）。
+        /// 分两种格子画：
+        ///   · 绿色红色高亮块、蓝色分隔带（有自己底色的）→ 整格正常画，**水印完全不参与**，
+        ///     颜色一点不受影响；
+        ///   · 白底格子 → 先画白底和边框，再叠水印，**最后画文字**——所以文字也是干净的、浮在水印上面。
+        /// </summary>
         private void OnGridCellPainting(object sender, DataGridViewCellPaintingEventArgs e)
         {
             var opacity = _config == null ? 0 : _config.WatermarkOpacityPercent;
             if (opacity <= 0) { return; }
             if (e.RowIndex < 0 || e.ColumnIndex < 0) { return; }   // 表头不画
 
-            e.Paint(e.ClipBounds, DataGridViewPaintParts.All);   // 正常画这一格（底、框、文字）
-            Watermark.Draw(e.Graphics, Watermark.CellsArea(_grid), e.CellBounds, opacity);
+            if (!IsPlainWhiteCell(e))
+            {
+                e.Paint(e.ClipBounds, DataGridViewPaintParts.All);   // 色块/色带：原样画，水印不掺和
+                e.Handled = true;
+                return;
+            }
+
+            e.Paint(e.ClipBounds, DataGridViewPaintParts.Background | DataGridViewPaintParts.Border);
+            Watermark.Draw(e.Graphics, Watermark.CellsArea(_grid), e.CellBounds, opacity);   // 垫在底下
+            e.Paint(e.ClipBounds, DataGridViewPaintParts.ContentForeground);                 // 文字压在它上面
             e.Handled = true;
+        }
+
+        /// <summary>这一格是不是"白底、没高亮"的普通格子（只有它才让水印露出来）。</summary>
+        private static bool IsPlainWhiteCell(DataGridViewCellPaintingEventArgs e)
+        {
+            var style = e.CellStyle;
+            if (style == null) { return true; }
+
+            var back = style.BackColor;
+            if (back.IsEmpty) { return true; }                                  // 没设底色 = 跟着控件走（白）
+            return back.ToArgb() == Color.White.ToArgb();
         }
 
         /// <summary>
