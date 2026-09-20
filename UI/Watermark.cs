@@ -23,9 +23,15 @@ namespace KeRing.UI
     {
         private const string ResourceName = "KeRing.Assets.watermark.jpg";
 
-        /// <summary>水印最多占格子区域的多大（按高/宽取更严的那个，留出边距）。</summary>
-        private const double MaxHeightRatio = 0.72;
-        private const double MaxWidthRatio = 0.60;
+        /// <summary>
+        /// 水印最多占格子区域的多大（按高/宽取更严的那个）。
+        /// 高度取 **1.0 = 铺满整个课表高度**：使用方 2026-09-20 反馈"图只到第二节课的格子，
+        /// 应该延伸到第一节课"——那是因为原来只给了 72% 的高度，而这张图自己的下半截又是浅色的，
+        /// 看上去就只从第二行开始。**图片本身不会被拉伸**，仍然是按原比例缩放 + 居中。
+        /// 宽度上限是怕图太宽铺到表头外面去。
+        /// </summary>
+        private const double MaxHeightRatio = 1.0;
+        private const double MaxWidthRatio = 0.75;
 
         private static Image _image;
         private static bool _tried;
