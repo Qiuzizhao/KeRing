@@ -33,6 +33,7 @@ namespace KeRing.UI
         private readonly IList<SchoolClass> _classes;
         private readonly CheckBox _chkAutoStart;
         private readonly CheckBox _chkFloating;
+        private readonly CheckBox _chkWatchdog;
         private readonly Button _btnClass;
         private readonly Label _lblScheme;
         private readonly TouchToggles _togglesAhead;
@@ -44,6 +45,8 @@ namespace KeRing.UI
 
         public bool AutoStartEnabled { get; private set; }
         public bool FloatingEnabled { get; private set; }
+        /// <summary>挂了自动拉起来（看门狗）。</summary>
+        public bool WatchdogEnabled { get; private set; }
         public string SelectedClassId { get; private set; }
         public string GradeScheme { get; private set; }
         /// <summary>选中的提前提醒档位（分钟，大的在前）；空列表 = 一档都不打铃。</summary>
@@ -55,6 +58,7 @@ namespace KeRing.UI
         public SettingsForm(
             bool autoStart,
             bool floatingEnabled,
+            bool watchdogEnabled,
             IList<SchoolClass> classes,
             string classId,
             string gradeScheme,
@@ -68,6 +72,7 @@ namespace KeRing.UI
 
             AutoStartEnabled = autoStart;
             FloatingEnabled = floatingEnabled;
+            WatchdogEnabled = watchdogEnabled;
             SelectedClassId = classId;
             GradeScheme = GradeSchemes.Normalize(gradeScheme);
             RemindAheadList = new List<int>(aheadList ?? new List<int>());
@@ -88,19 +93,31 @@ namespace KeRing.UI
 
             _chkAutoStart = new CheckBox
             {
-                Text = "开机自启（登录后自动运行）",
+                // 短一点，好让"挂了自动拉起"也挤进这一行（括号里那句其实是废话）
+                Text = "开机自启",
                 AutoSize = true,
                 Location = UiScale.P(LabelX, 20),
                 Checked = autoStart,
             };
 
-            // "显示悬浮窗"跟开机自启并排（这一行放得下两个复选框）
+            // 这一行放三个复选框：开机自启 / 显示悬浮窗 / 挂了自动拉起。
+            // 位置是按三段的实际文字宽度算出来的（79 / 93 / 106 像素），让间隙一样宽、右边正好对齐到 436
             _chkFloating = new CheckBox
             {
                 Text = "显示悬浮窗",
                 AutoSize = true,
-                Location = UiScale.P(250, 20),
+                Location = UiScale.P(170, 20),
                 Checked = floatingEnabled,
+            };
+
+            // 看门狗（见 App/Watchdog.cs）：被强杀/崩了 5 分钟内自动拉起来。
+            // **手动退出不受影响**——那种情况程序会先留个"别拉我"的标记。
+            _chkWatchdog = new CheckBox
+            {
+                Text = "挂了自动拉起",
+                AutoSize = true,
+                Location = UiScale.P(330, 20),
+                Checked = watchdogEnabled,
             };
 
             _btnClass = new Button
@@ -174,6 +191,7 @@ namespace KeRing.UI
 
             Controls.Add(_chkAutoStart);
             Controls.Add(_chkFloating);
+            Controls.Add(_chkWatchdog);
             Controls.Add(MakeLabel("班级：", LabelX, 60));
             Controls.Add(_btnClass);
             Controls.Add(MakeLabel("时段方案：", LabelX, 60 + RowHeight));
@@ -215,6 +233,7 @@ namespace KeRing.UI
         {
             AutoStartEnabled = _chkAutoStart.Checked;
             FloatingEnabled = _chkFloating.Checked;
+            WatchdogEnabled = _chkWatchdog.Checked;
             SelectedClassId = _classId;
             RemindAheadList = _togglesAhead.Selected;
             AnnounceVolumePercent = _stepperVolume.Value;

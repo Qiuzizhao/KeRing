@@ -376,7 +376,7 @@ namespace KeRing.UI
             _floatingMenuItem.Click += (sender, args) => ToggleFloatingFromTray();
             menu.Items.Add(_floatingMenuItem);
             menu.Items.Add(new ToolStripSeparator());
-            menu.Items.Add("退出", null, (sender, args) => ExitApplication());
+            menu.Items.Add("退出（不再自动重启）", null, (sender, args) => ExitApplication());
             _tray.ContextMenuStrip = menu;
             _tray.DoubleClick += (sender, args) => ShowWindowNow();
         }
@@ -388,6 +388,7 @@ namespace KeRing.UI
             base.OnLoad(e);
 
             ApplyAutoStartFromConfig();
+            ApplyWatchdogFromConfig();
             ApplyMuteState();
 
             // 配置里没有班级 = 第一次运行，稍后取到课表要弹一次选择框
@@ -1319,12 +1320,33 @@ namespace KeRing.UI
 
         }
 
+        /// <summary>
+        /// 按配置登记 / 注销看门狗计划任务（见 App/Watchdog.cs）。
+        /// **放后台线程**：要起 schtasks.exe（几十到几百毫秒），别卡住启动。
+        /// </summary>
+        private void ApplyWatchdogFromConfig()
+        {
+            var config = _config;
+            Task.Run(() =>
+            {
+                try
+                {
+                    Watchdog.Apply(config);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Warn("看门狗：登记任务时出错：" + ex.Message);
+                }
+            });
+        }
+
         /// <summary>打开设置对话框，确认后立即生效并落盘。</summary>
         private void OpenSettings()
         {
             using (var dialog = new SettingsForm(
                 _config.AutoStart,
                 _config.FloatingEnabled,
+                _config.WatchdogEnabled,
                 _school == null ? null : _school.Classes,
                 _config.SelectedClassId,
                 _config.GradeScheme,
@@ -1347,6 +1369,8 @@ namespace KeRing.UI
                 _config.AutoStart = dialog.AutoStartEnabled;
                 var floatingChanged = _config.FloatingEnabled != dialog.FloatingEnabled;
                 _config.FloatingEnabled = dialog.FloatingEnabled;
+                var watchdogChanged = _config.WatchdogEnabled != dialog.WatchdogEnabled;
+                _config.WatchdogEnabled = dialog.WatchdogEnabled;
                 _config.Save();
 
                 _scheduler.UpdateAheadList(_config.RemindAheadList);
@@ -1369,9 +1393,10 @@ namespace KeRing.UI
                 }
 
                 Logger.Info(string.Format(
-                    "设置已更新：自启={0}，悬浮窗={1}，方案={2}，提前={3}，播报音量={4}%，播报次数={5} 遍，刷新间隔={6} 分钟",
+                    "设置已更新：自启={0}，悬浮窗={1}，看门狗={2}，方案={3}，提前={4}，播报音量={5}%，播报次数={6} 遍，刷新间隔={7} 分钟",
                     _config.AutoStart,
                     _config.FloatingEnabled,
+                    _config.WatchdogEnabled,
                     _config.GradeScheme,
                     DescribeAheadList(_config.RemindAheadList),
                     _config.AnnounceVolumePercent,
@@ -1379,6 +1404,7 @@ namespace KeRing.UI
                     _config.RefreshIntervalMinutes));
 
                 if (floatingChanged) { ApplyFloatingFromConfig(); }
+                if (watchdogChanged) { ApplyWatchdogFromConfig(); }
 
                 UpdateNextReminderLabel(AppClock.Now);
                 UpdateHighlights(AppClock.Now);
@@ -1455,6 +1481,8 @@ namespace KeRing.UI
         private void ExitApplication()
         {
             _exiting = true;
+            // 使用者主动退出：先给看门狗留个"别拉我"的标记（下次正常启动会自动清掉）
+            Watchdog.Pause("从托盘菜单退出");
             if (_tray != null) { _tray.Visible = false; }
             Close();
         }

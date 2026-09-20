@@ -129,6 +129,22 @@ namespace KeRing.App
         // ---- 运行方式 ----
         /// <summary>开机自启，默认开启（安装后即生效）。</summary>
         public bool AutoStart { get; set; } = true;
+
+        /// <summary>
+        /// **挂了自动拉起来**（看门狗，见 App/Watchdog.cs），默认开。
+        /// 教室机器上这条比什么都重要——铃悄悄不响了没人知道才是最糟的。
+        /// </summary>
+        public bool WatchdogEnabled { get; set; } = true;
+
+        /// <summary>
+        /// 看门狗计划任务登记的是哪个 exe。空 = 没登记成功（被系统策略挡住）或已关闭；
+        /// 程序换目录之后它会自动重新登记（跟开机自启的处理一样）。
+        /// </summary>
+        public string WatchdogTaskPath { get; set; } = string.Empty;
+
+        /// <summary>上一次登记计划任务失败的原因（空 = 没失败过）。被系统策略挡住时这里会写明，自检里能看到。</summary>
+        public string WatchdogLastError { get; set; } = string.Empty;
+
         public bool StartMinimized { get; set; }
         public bool CloseToTray { get; set; } = true;
 
@@ -198,6 +214,8 @@ namespace KeRing.App
             if (string.IsNullOrWhiteSpace(ScheduleCookieUser)) { ScheduleCookieUser = "KeRing"; }
             if (NtpServers == null) { NtpServers = string.Empty; }
             if (SelectedClassId == null) { SelectedClassId = string.Empty; }
+            if (WatchdogTaskPath == null) { WatchdogTaskPath = string.Empty; }
+            if (WatchdogLastError == null) { WatchdogLastError = string.Empty; }
             if (AnnouncePrefix == null) { AnnouncePrefix = string.Empty; }
             if (AnnounceSuffix == null) { AnnounceSuffix = string.Empty; }
         }

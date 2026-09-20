@@ -30,6 +30,14 @@ namespace KeRing
                 return;
             }
 
+            // 看门狗（计划任务每 5 分钟调一次）：主程序在跑就悄悄退出，不在就把它拉起来。
+            // **必须放在单实例锁之前**——否则这里会被当成"第二个实例"，还会去把主窗口弹出来，那就闹笑话了。
+            if (args != null && args.Length > 0 && string.Equals(args[0], "--watchdog", StringComparison.OrdinalIgnoreCase))
+            {
+                Environment.ExitCode = Watchdog.Run();
+                return;
+            }
+
             bool isFirstInstance;
             using (var mutex = AcquireMutex(out isFirstInstance))
             {
@@ -44,6 +52,9 @@ namespace KeRing
                 EnableDpiAwareness();
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
+
+                // 正常启动了（双击 / 开机自启 / 看门狗拉起）：清掉"手动退出"的标记，恢复守护
+                Watchdog.ClearPause();
 
                 Logger.Cleanup();
                 var config = AppConfig.Load();

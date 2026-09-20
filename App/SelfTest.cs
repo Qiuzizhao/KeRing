@@ -44,6 +44,7 @@ namespace KeRing.App
             report.AppendLine("    播报次数：" + config.AnnounceRepeatCount + " 遍（每遍先响一次提示音，再念那句话）");
             report.AppendLine("    刷新间隔：" + config.RefreshIntervalMinutes + " 分钟");
             report.AppendLine("    悬浮窗：" + (config.FloatingEnabled ? (config.FloatingTopMost ? "开（已置顶）" : "开（不置顶，沉在下面）") : "关"));
+            report.AppendLine("    看门狗：" + DescribeWatchdog(config));
             report.AppendLine("    数据源：" + source.Description);
             report.AppendLine();
 
@@ -196,6 +197,26 @@ namespace KeRing.App
             }
 
             return parts + " 分钟";
+        }
+
+        /// <summary>看门狗状态：关了 / 已登记 / 还没登记（程序启动时会自己登记）/ 登记失败（写明原因）。</summary>
+        private static string DescribeWatchdog(AppConfig config)
+        {
+            if (!config.WatchdogEnabled) { return "关"; }
+
+            if (!string.IsNullOrEmpty(config.WatchdogLastError))
+            {
+                return "开，但上次登记失败：" + config.WatchdogLastError;
+            }
+
+            if (string.IsNullOrEmpty(config.WatchdogTaskPath))
+            {
+                return "开（程序启动时会自己登记计划任务）";
+            }
+
+            return string.Equals(config.WatchdogTaskPath, Watchdog.ExePath, StringComparison.OrdinalIgnoreCase)
+                ? "开（计划任务已登记，每 5 分钟看一眼）"
+                : "开（计划任务已登记，但指向的是 " + config.WatchdogTaskPath + "；换目录后程序会自动改过来）";
         }
 
         public static int Say(string course)
