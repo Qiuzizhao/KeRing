@@ -60,7 +60,7 @@ namespace KeRing
                 var config = AppConfig.Load();
                 Logger.Info(string.Format(
                     "程序启动，版本 {0}，单实例锁：{1}",
-                    typeof(Program).Assembly.GetName().Version,
+                    AppInfo.Version,
                     _namespacePrefix.Length == 0 ? "本会话" : "全局（跨会话）"));
 
                 using (var showSignal = CreateShowSignal())

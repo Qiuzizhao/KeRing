@@ -163,7 +163,8 @@ namespace KeRing.UI
         {
             AutoScaleMode = AutoScaleMode.None; // 缩放由 _scale 自己做
 
-            Text = "智能课表打铃";
+            // 标题栏带版本号（使用方 2026-09-20 要求）：版本号唯一来源是 csproj 的 AppVersion
+            Text = AppInfo.Title("智能课表打铃");
             Font = UiFont.Body;
             Icon = LoadAppIcon(SystemInformation.IconSize);
             // 打开时的尺寸先占位，真正的宽高在课表加载完后按内容算
@@ -360,7 +361,7 @@ namespace KeRing.UI
             _tray = new NotifyIcon
             {
                 Icon = LoadAppIcon(SystemInformation.SmallIconSize),
-                Text = "智能课表打铃",
+                Text = AppInfo.Title("智能课表打铃"),
                 Visible = true,
             };
 
@@ -1436,7 +1437,10 @@ namespace KeRing.UI
             if (_muteMenuItem != null) { _muteMenuItem.Checked = _muted; }
             if (_tray != null)
             {
-                _tray.Text = _muted ? "智能课表打铃 · 已静音" : "智能课表打铃";
+                // 托盘提示也带上版本号：鼠标一悬停就知道这台机器跑的是哪一版
+                _tray.Text = _muted
+                    ? AppInfo.Title("智能课表打铃") + " · 已静音"
+                    : AppInfo.Title("智能课表打铃");
             }
         }
 

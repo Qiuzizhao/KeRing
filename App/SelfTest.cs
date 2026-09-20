@@ -20,7 +20,7 @@ namespace KeRing.App
             var report = new StringBuilder();
             var failures = 0;
 
-            report.AppendLine("KeRing 自检报告  " + AppClock.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+            report.AppendLine("KeRing 自检报告  v" + AppInfo.Version + "  " + AppClock.Now.ToString("yyyy-MM-dd HH:mm:ss"));
             report.AppendLine("程序目录：" + AppPaths.BaseDirectory);
             report.AppendLine("数据目录：" + AppPaths.DataDirectory);
             report.AppendLine();

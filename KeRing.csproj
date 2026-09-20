@@ -7,9 +7,19 @@
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
-    <AssemblyName>KeRing</AssemblyName>
+    <!--
+      版本号只有这一个地方定义（AppVersion）：exe 文件名跟着它走，窗口标题栏和自检命令
+      读的是程序集里的版本（见 App/AppInfo.cs）。**改版本只改这一行。**
+      文件名形如 "KeRing 1.5.0.exe"——使用方 2026-09-20 要求"从 exe 文件名到窗口顶部栏都带版本号"。
+    -->
+    <AppVersion>1.5.0</AppVersion>
+    <Version>$(AppVersion)</Version>
+    <FileVersion>$(AppVersion)</FileVersion>
+    <InformationalVersion>$(AppVersion)</InformationalVersion>
+    <!-- 默认会把 git 提交号缀在产品版本后面（1.5.0+abc1234），属性对话框里看着乱，关掉 -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <AssemblyName>KeRing $(AppVersion)</AssemblyName>
     <RootNamespace>KeRing</RootNamespace>
-    <Version>0.1.0</Version>
     <AssemblyTitle>智能课表打铃</AssemblyTitle>
     <Product>智能课表打铃</Product>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
