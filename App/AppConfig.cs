@@ -145,6 +145,12 @@ namespace KeRing.App
         /// <summary>上一次登记计划任务失败的原因（空 = 没失败过）。被系统策略挡住时这里会写明，自检里能看到。</summary>
         public string WatchdogLastError { get; set; } = string.Empty;
 
+        /// <summary>
+        /// 课表中间那张背景水印的不透明度（百分比）。**默认 12**（淡淡的、看得出但不碍读字），**0 = 不显示**。
+        /// 图内嵌在 exe 里（Assets\watermark.jpg），居中、按原比例缩放，不拉伸——见 UI/Watermark.cs。
+        /// </summary>
+        public int WatermarkOpacityPercent { get; set; } = 12;
+
         public bool StartMinimized { get; set; }
         public bool CloseToTray { get; set; } = true;
 
@@ -209,6 +215,7 @@ namespace KeRing.App
             ScheduleTimeoutSeconds = Clamp(ScheduleTimeoutSeconds, 1, 60);
             NtpTimeoutSeconds = Clamp(NtpTimeoutSeconds, 1, 30);
             FloatingOpacity = Clamp(FloatingOpacity, 40, 100);
+            WatermarkOpacityPercent = Clamp(WatermarkOpacityPercent, 0, 100);
             GradeScheme = GradeSchemes.Normalize(GradeScheme);
             if (ScheduleApiUrl == null) { ScheduleApiUrl = string.Empty; }
             if (string.IsNullOrWhiteSpace(ScheduleCookieUser)) { ScheduleCookieUser = "KeRing"; }

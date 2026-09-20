@@ -45,6 +45,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Assets\app.ico" />
     <EmbeddedResource Include="Assets\bell.wav" />
+    <EmbeddedResource Include="Assets\watermark.jpg" />
   </ItemGroup>
 
 </Project>

@@ -296,6 +296,23 @@ namespace KeRing.UI
             _grid.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None;
             _grid.Resize += (sender, args) => FillRows();
             _grid.SelectionChanged += (sender, args) => _grid.ClearSelection();
+
+            // 课表中间的背景水印（居中、按原比例、淡淡一层，见 UI/Watermark.cs）。
+            // 挂在 CellPainting 上"先让格子正常画完、再叠一层"——挂在 Paint 上是画在格子底下的，
+            // 会被每个格子的白底盖住（DataGridView 的 Paint 先于内部绘制触发）。
+            _grid.CellPainting += OnGridCellPainting;
+        }
+
+        /// <summary>水印：每格画完自己的内容之后，把落在这一格里的那部分图叠上去。</summary>
+        private void OnGridCellPainting(object sender, DataGridViewCellPaintingEventArgs e)
+        {
+            var opacity = _config == null ? 0 : _config.WatermarkOpacityPercent;
+            if (opacity <= 0) { return; }
+            if (e.RowIndex < 0 || e.ColumnIndex < 0) { return; }   // 表头不画
+
+            e.Paint(e.ClipBounds, DataGridViewPaintParts.All);   // 正常画这一格（底、框、文字）
+            Watermark.Draw(e.Graphics, Watermark.CellsArea(_grid), e.CellBounds, opacity);
+            e.Handled = true;
         }
 
         /// <summary>
