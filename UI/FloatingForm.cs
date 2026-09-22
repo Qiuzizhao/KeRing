@@ -71,6 +71,14 @@ namespace KeRing.UI
         private bool _moved;
         private bool _pinHover;
 
+        /// <summary>上一次单击的时间和位置——用来**自己判断双击**（原因见 MouseClick 里的注释）。</summary>
+        private DateTime _lastClickAt = DateTime.MinValue;
+        private Point _lastClickPoint;
+
+        /// <summary>拖动起点：屏幕坐标 + 当时的窗口位置（自己算位移，见 OnMouseMove）。</summary>
+        private Point _dragStartScreen;
+        private Point _dragStartWindow;
+
         public FloatingForm(AppConfig config, MainForm main)
         {
             _config = config;
@@ -122,12 +130,49 @@ namespace KeRing.UI
                 // 实测 WinForms 是 MouseDown → MouseClick → MouseUp，用标志位在 MouseUp 里判断会永远不触发。
                 if (PinRect().Contains(args.Location)) { ToggleTopMost(); return; }
 
-                // 不置顶时，点一下把它抬到普通窗口上面（像正常窗口那样），但不抢键盘焦点
+                // **双击 = 打开主窗口**，而且是自己按"时间和距离"判断的，不靠 MouseDoubleClick：
+                //   · 小窗的拖动是 `WM_NCLBUTTONDOWN + HTCAPTION` 交给系统的，那个拖拽循环经常把
+                //     WM_LBUTTONDBLCLK 吞掉，MouseDoubleClick 十有八九不触发；
+                //   · 大屏一体机/触摸屏的驱动也未必生成 WM_LBUTTONDBLCLK，触摸用户就更点不出来了。
+                var now = DateTime.Now;
+                var isDoubleClick =
+                    (now - _lastClickAt).TotalMilliseconds <= SystemInformation.DoubleClickTime &&
+                    Math.Abs(args.X - _lastClickPoint.X) <= SystemInformation.DoubleClickSize.Width / 2 &&
+                    Math.Abs(args.Y - _lastClickPoint.Y) <= SystemInformation.DoubleClickSize.Height / 2;
+
+                _lastClickAt = isDoubleClick ? DateTime.MinValue : now;   // 双击后清零，免得第三下又算一次
+                _lastClickPoint = args.Location;
+
+                if (isDoubleClick && !_moved)
+                {
+                    OpenByDoubleClick("自己判定");
+                    return;
+                }
+
+                // 单击：不置顶时，点一下把它抬到普通窗口上面（像正常窗口那样），但不抢键盘焦点
                 if (!TopMost) { BringToFrontWithoutActivating(); }
                 if (!_moved) { TogglePreview(); }
             };
-            MouseDoubleClick += (sender, args) => OpenMainWindow();
+
+            // 系统级的双击事件**也要接**：两次点击够快时 Windows 发的是 WM_LBUTTONDBLCLK，
+            // 这时 WinForms 抛的是 MouseDoubleClick、**不会抛第二个 MouseClick**
+            // （上面那段"自己判定"就永远看不到第二下，2026-09-22 实测踩过）。
+            MouseDoubleClick += (sender, args) =>
+            {
+                if (PinRect().Contains(args.Location)) { return; }
+                if (_moved) { return; }
+                OpenByDoubleClick("系统双击事件");
+            };
             UpdatePinTip();
+        }
+
+        /// <summary>双击的统一动作：先把预览收回去（别挡着刚打开的主窗口），再打开主窗口。</summary>
+        private void OpenByDoubleClick(string source)
+        {
+            _lastClickAt = DateTime.MinValue;   // 清掉单击记录，避免紧接着的一下又被算成双击
+            HidePreview();
+            Logger.Info("悬浮窗：双击（" + source + "），打开主窗口");
+            OpenMainWindow();
         }
 
         /// <summary>点了它不抢焦点（否则全屏上课时会被打断）。</summary>
@@ -507,14 +552,10 @@ namespace KeRing.UI
 
         // ---------- 拖动（无边框窗口要自己实现）----------
 
-        [DllImport("user32.dll")]
-        private static extern bool ReleaseCapture();
-
-        [DllImport("user32.dll")]
-        private static extern IntPtr SendMessage(IntPtr hWnd, int msg, int wParam, int lParam);
-
-        private const int WM_NCLBUTTONDOWN = 0x00A1;
-        private const int HTCAPTION = 0x0002;
+        // **拖动是自己算的，没交给系统**（`WM_NCLBUTTONDOWN + HTCAPTION` 那种做法）：
+        // 交给系统的话，那个"模态拖拽循环"会把**鼠标抬起**消息吃掉，WinForms 就永远收不到
+        // WM_LBUTTONUP → `MouseClick` / `MouseDoubleClick` 一次都不触发（2026-09-22 实测：
+        // 日志里一条点击记录都没有，双击打开主窗口、单击展开预览全都不工作）。
 
         [DllImport("user32.dll")]
         private static extern bool SetWindowPos(IntPtr hWnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
@@ -575,8 +616,8 @@ namespace KeRing.UI
 
             _dragging = true;
             _moved = false;
-            ReleaseCapture();
-            SendMessage(Handle, WM_NCLBUTTONDOWN, HTCAPTION, 0);   // 交给系统去拖，省得自己算偏移
+            _dragStartScreen = Cursor.Position;    // 记下起点（屏幕坐标），移动时按位移挪窗口
+            _dragStartWindow = Location;
         }
 
         private void OnMouseMove(object sender, MouseEventArgs e)
@@ -590,7 +631,21 @@ namespace KeRing.UI
             }
 
             if (!_dragging) { return; }
-            _moved = true;
+
+            var current = Cursor.Position;
+            var dx = current.X - _dragStartScreen.X;
+            var dy = current.Y - _dragStartScreen.Y;
+
+            // 超过系统认定的"拖动阈值"才算拖动（不然手指点一下的轻微抖动也会把窗口挪走，
+            // 而且会把"单击"变成"拖动"、点不出预览和双击）
+            if (!_moved &&
+                (Math.Abs(dx) > SystemInformation.DragSize.Width / 2 ||
+                 Math.Abs(dy) > SystemInformation.DragSize.Height / 2))
+            {
+                _moved = true;
+            }
+
+            if (_moved) { Location = new Point(_dragStartWindow.X + dx, _dragStartWindow.Y + dy); }
         }
 
         private void OnMouseUp(object sender, MouseEventArgs e)
