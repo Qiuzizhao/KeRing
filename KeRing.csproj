@@ -12,7 +12,7 @@
       读的是程序集里的版本（见 App/AppInfo.cs）。**改版本只改这一行。**
       文件名形如 "KeRing 1.5.0.exe"——使用方 2026-09-20 要求"从 exe 文件名到窗口顶部栏都带版本号"。
     -->
-    <AppVersion>1.5.0</AppVersion>
+    <AppVersion>1.5.1</AppVersion>
     <Version>$(AppVersion)</Version>
     <FileVersion>$(AppVersion)</FileVersion>
     <InformationalVersion>$(AppVersion)</InformationalVersion>

@@ -12,7 +12,7 @@ namespace KeRing.App
     internal static class AppInfo
     {
         /// <summary>读不到就退回这个（正常情况下永远读得到）。</summary>
-        private const string FallbackVersion = "1.5.0";
+        private const string FallbackVersion = "1.5.1";
 
         private static string _version;
 
